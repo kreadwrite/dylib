@@ -11,9 +11,13 @@
 #import "Settings/PlaybackSpeed.h"
 
 @interface AppDelegate : NSObject <UIApplicationDelegate>
+- (void)pxScanForTabBarElementsIn:(UIView *)root;
 @end
 
 @interface TTKCommentPanelViewController: UIViewController
+- (void)pxHideTooltipViewsIn:(UIView *)root;
+- (void)pxHideEmojiPanelIn:(UIView *)root;
+- (void)pxAutoExpandRepliesIn:(UIView *)root;
 @end 
 
 @interface AWEUserNameLabel: UILabel
@@ -355,6 +359,9 @@
 @end
 
 @interface TTKSearchEntranceButton: UIButton
+@end
+
+@interface AWETabBarPlusButton : UIView
 @end
 
 @interface AWEPlayInteractionWarningElementView: UIView

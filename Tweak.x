@@ -1106,21 +1106,34 @@ static BOOL isAuthenticationShowed = FALSE;
 }
 %end
 
-%hook UIButton // follow confirmation broken 
+static BOOL _pxFollowConfirmBypass = NO;
+
+%hook UIButton // follow confirmation
 - (void)_onTouchUpInside {
-    if ([BHIManager followConfirmation] && [self.currentTitle isEqualToString:@"Follow"]) {
-        showConfirmation(^(void) { %orig; });
+    if (!_pxFollowConfirmBypass && [BHIManager followConfirmation] && [self.currentTitle isEqualToString:@"Follow"]) {
+        _pxFollowConfirmBypass = YES;
+        showConfirmation(^(void) {
+            [self _onTouchUpInside];
+            _pxFollowConfirmBypass = NO;
+        });
     } else {
         %orig;
     }
 }
 %end
+
+static BOOL _pxFollowAvatarBypass = NO;
+
 %hook AWEPlayInteractionUserAvatarElement
 - (void)onFollowViewClicked:(id)sender {
-    if ([BHIManager followConfirmation]) {
-        showConfirmation(^(void) { %orig; });
+    if (!_pxFollowAvatarBypass && [BHIManager followConfirmation]) {
+        _pxFollowAvatarBypass = YES;
+        showConfirmation(^(void) {
+            [self onFollowViewClicked:sender];
+            _pxFollowAvatarBypass = NO;
+        });
     } else {
-        return %orig;
+        %orig;
     }
 }
 %end
@@ -1128,37 +1141,37 @@ static BOOL isAuthenticationShowed = FALSE;
 %hook TTKProfileBaseComponentModel // Fake Followers, Fake Following and FakeVerified.
 
 - (NSDictionary *)bizData {
-	if ([BHIManager fakeChangesEnabled]) {
-		NSDictionary *originalData = %orig;
-		NSMutableDictionary *modifiedData = [originalData mutableCopy];
-		
-		NSNumber *fakeFollowingCount = [self numberFromUserDefaultsForKey:@"following_count"];
-		NSNumber *fakeFollowersCount = [self numberFromUserDefaultsForKey:@"follower_count"];
-		
-		if ([self.componentID isEqualToString:@"relation_info_follower"]) {
-			modifiedData[@"follower_count"] = fakeFollowersCount ?: @0; 
-		} else if ([self.componentID isEqualToString:@"relation_info_following"]) {
-			modifiedData[@"following_count"] = fakeFollowingCount ?: @0; 
-			modifiedData[@"formatted_number"] = [self formattedStringFromNumber:fakeFollowingCount ?: @0];
-		} 
-		return [modifiedData copy];
-	}
-	return %orig;
+        if ([BHIManager fakeChangesEnabled]) {
+                NSDictionary *originalData = %orig;
+                NSMutableDictionary *modifiedData = [originalData mutableCopy];
+                
+                NSNumber *fakeFollowingCount = [self numberFromUserDefaultsForKey:@"following_count"];
+                NSNumber *fakeFollowersCount = [self numberFromUserDefaultsForKey:@"follower_count"];
+                
+                if ([self.componentID isEqualToString:@"relation_info_follower"]) {
+                        modifiedData[@"follower_count"] = fakeFollowersCount ?: @0; 
+                } else if ([self.componentID isEqualToString:@"relation_info_following"]) {
+                        modifiedData[@"following_count"] = fakeFollowingCount ?: @0; 
+                        modifiedData[@"formatted_number"] = [self formattedStringFromNumber:fakeFollowingCount ?: @0];
+                } 
+                return [modifiedData copy];
+        }
+        return %orig;
 }
 
 - (NSArray *)components {
-	if ([BHIManager fakeVerified]) {
-		NSArray *originalComponents = %orig;
-		if ([self.componentID isEqualToString:@"user_account_base_info"] && originalComponents.count == 1) {
-			NSMutableArray *modifiedComponents = [originalComponents mutableCopy];
-			TTKProfileBaseComponentModel *fakeVerify = [%c(TTKProfileBaseComponentModel) new];
-			fakeVerify.componentID = @"user_account_verify";
-			fakeVerify.name = @"user_account_verify";
-			[modifiedComponents addObject:fakeVerify];
-			return [modifiedComponents copy];
-		}
-	}
-	return %orig;
+        if ([BHIManager fakeVerified]) {
+                NSArray *originalComponents = %orig;
+                if ([self.componentID isEqualToString:@"user_account_base_info"] && originalComponents.count == 1) {
+                        NSMutableArray *modifiedComponents = [originalComponents mutableCopy];
+                        TTKProfileBaseComponentModel *fakeVerify = [%c(TTKProfileBaseComponentModel) new];
+                        fakeVerify.componentID = @"user_account_verify";
+                        fakeVerify.name = @"user_account_verify";
+                        [modifiedComponents addObject:fakeVerify];
+                        return [modifiedComponents copy];
+                }
+        }
+        return %orig;
 }
 
 %new - (NSNumber *)numberFromUserDefaultsForKey:(NSString *)key {
@@ -2114,123 +2127,123 @@ static BOOL isAuthenticationShowed = FALSE;
 
 %hook NSFileManager
 -(BOOL)fileExistsAtPath:(id)arg1 {
-	for (NSString *file in jailbreakPaths) {
-		if ([arg1 isEqualToString:file]) {
-			return NO;
-		}
-	}
-	return %orig;
+        for (NSString *file in jailbreakPaths) {
+                if ([arg1 isEqualToString:file]) {
+                        return NO;
+                }
+        }
+        return %orig;
 }
 -(BOOL)fileExistsAtPath:(id)arg1 isDirectory:(BOOL*)arg2 {
-	for (NSString *file in jailbreakPaths) {
-		if ([arg1 isEqualToString:file]) {
-			return NO;
-		}
-	}
-	return %orig;
+        for (NSString *file in jailbreakPaths) {
+                if ([arg1 isEqualToString:file]) {
+                        return NO;
+                }
+        }
+        return %orig;
 }
 %end
 %hook BDADeviceHelper
 +(bool)isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook UIDevice
 +(bool)btd_isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook TTInstallUtil
 +(bool)isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook AppsFlyerUtils
 +(bool)isJailbrokenWithSkipAdvancedJailbreakValidation:(bool)arg2 {
-	return NO;
+        return NO;
 }
 %end
 
 %hook PIPOIAPStoreManager
 -(bool)_pipo_isJailBrokenDeviceWithProductID:(id)arg2 orderID:(id)arg3 {
-	return NO;
+        return NO;
 }
 %end
 
 %hook IESLiveDeviceInfo
 +(bool)isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook PIPOStoreKitHelper
 -(bool)isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook BDInstallNetworkUtility
 +(bool)isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook TTAdSplashDeviceHelper
 +(bool)isJailBroken {
-	return NO;
+        return NO;
 }
 %end
 
 %hook GULAppEnvironmentUtil
 +(bool)isFromAppStore {
-	return YES;
+        return YES;
 }
 +(bool)isAppStoreReceiptSandbox {
-	return NO;
+        return NO;
 }
 +(bool)isAppExtension {
-	return YES;
+        return YES;
 }
 %end
 
 %hook FBSDKAppEventsUtility
 +(bool)isDebugBuild {
-	return NO;
+        return NO;
 }
 %end
 
 %hook AWEAPMManager
 +(id)signInfo {
-	return @"AppStore";
+        return @"AppStore";
 }
 %end
 
 %hook NSBundle
 -(id)pathForResource:(id)arg1 ofType:(id)arg2 {
-	if ([arg2 isEqualToString:@"mobileprovision"]) {
-		return nil;
-	}
-	return %orig;
+        if ([arg2 isEqualToString:@"mobileprovision"]) {
+                return nil;
+        }
+        return %orig;
 }
 %end
 %hook AWESecurity
 - (void)resetCollectMode {
-	return;
+        return;
 }
 %end
 %hook MSManagerOV
 - (id)setMode {
-	return (id (^)(id)) ^{
-	};
+        return (id (^)(id)) ^{
+        };
 }
 %end
 %hook MSConfigOV
 - (id)setMode {
-	return (id (^)(id)) ^{
-	};
+        return (id (^)(id)) ^{
+        };
 }
 %end
 
