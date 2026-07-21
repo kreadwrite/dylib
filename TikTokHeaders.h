@@ -80,8 +80,12 @@
 @interface AWECommentPanelCell: UITableView
 - (void)onLikeAction:(id)arg1;
 - (void)onDislikeAction:(id)arg1;
+@property (nonatomic, assign) BOOL pxHasCommentGesture;
 @end
 @interface TikTokFeedTabControl: UIView
+@end
+
+@interface AWELiveFeedEntranceView: UIView
 @end
 
 @interface AWEFeedVideoButton: UIButton
@@ -284,6 +288,7 @@
 - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC;
 - (void)downloadHDVideo:(AWEAwemeBaseViewController *)rootVC;
 - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC;
+- (void)translateDecription:(AWEAwemeBaseViewController *)rootVC;
 - (void)downloadPhotos:(TTKPhotoAlbumDetailCellController *)rootVC photoIndex:(unsigned long)index;
 - (void)downloadPhotos:(TTKPhotoAlbumDetailCellController *)rootVC;
 - (void)tapDownloadVideo;
@@ -313,6 +318,7 @@
 - (void)copyMusic:(AWEAwemeBaseViewController *)rootVC;
 - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC;
 - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC;
+- (void)translateDecription:(AWEAwemeBaseViewController *)rootVC;
 @end
 @interface AWEAwemeDetailTableViewCell () <BHDownloadDelegate>
 @end

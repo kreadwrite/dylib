@@ -1264,7 +1264,7 @@ static BOOL _pxDislikeCommentBypass = NO;
     }
     if (commentText.length == 0) return;
 
-    TUXActionSheetController *alert = [[%c(TUXActionSheetController) alloc] initWithTitle:nil];
+    TUXActionSheetController *alert = [[%c(TUXActionSheetController) alloc] initWithTitle:@""];
     if ([BHIManager copyCommentWithoutUsername]) {
         [alert addAction:[[%c(TUXActionSheetAction) alloc] initWithStyle:0 title:@"Copy comment text" subtitle:nil image:[UIImage systemImageNamed:@"clipboard"] imageLabel:nil handler:^(TUXActionSheetAction * _Nonnull action) {
             UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
