@@ -1201,28 +1201,45 @@ static BOOL _pxFollowAvatarBypass = NO;
 
 %end
 
+static BOOL _pxLikeConfirmBypass = NO;
+
 %hook AWEFeedVideoButton // like feed confirmation
 - (void)_onTouchUpInside {
-    if ([BHIManager likeConfirmation] && [self.imageNameString isEqualToString:@"ic_like_fill_1_new"]) {
-        showConfirmation(^(void) { %orig; });
+    if (!_pxLikeConfirmBypass && [BHIManager likeConfirmation] && [self.imageNameString isEqualToString:@"ic_like_fill_1_new"]) {
+        _pxLikeConfirmBypass = YES;
+        showConfirmation(^(void) {
+            [self _onTouchUpInside];
+            _pxLikeConfirmBypass = NO;
+        });
     } else {
         %orig;
     }
 }
 %end
+static BOOL _pxLikeCommentBypass = NO;
+static BOOL _pxDislikeCommentBypass = NO;
+
 %hook AWECommentPanelCell // like/dislike comment confirmation
 - (void)onLikeAction:(id)arg1 {
-    if ([BHIManager likeCommentConfirmation]) {
-        showConfirmation(^(void) { %orig; });
+    if (!_pxLikeCommentBypass && [BHIManager likeCommentConfirmation]) {
+        _pxLikeCommentBypass = YES;
+        showConfirmation(^(void) {
+            [self onLikeAction:arg1];
+            _pxLikeCommentBypass = NO;
+        });
     } else {
-        return %orig;
+        %orig;
     }
 }
 - (void)onDislikeAction:(id)arg1 {
-    if ([BHIManager dislikeCommentConfirmation]) {
-        showConfirmation(^(void) { %orig; });
+    if (!_pxDislikeCommentBypass && [BHIManager dislikeCommentConfirmation]) {
+        _pxDislikeCommentBypass = YES;
+        showConfirmation(^(void) {
+            [self onDislikeAction:arg1];
+            _pxDislikeCommentBypass = NO;
+        });
     } else {
-        return %orig;
+        %orig;
     }
 }
 - (void)layoutSubviews {

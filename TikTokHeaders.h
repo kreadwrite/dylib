@@ -44,6 +44,14 @@
 - (void)addSubview:(id)arg1;
 - (NSString *)emojiForCountryCode:(NSString *)countryCode;
 @end
+
+@interface AWEPlayInteractionUserAvatarElement: UIView
+- (void)onFollowViewClicked:(id)sender;
+@end
+
+@interface UIButton (PXTokPrivate)
+- (void)_onTouchUpInside;
+@end
 @interface SparkViewController: UIViewController
 @property(nonatomic, strong, readwrite) NSURL *originURL;
 - (void)didTapCloseButton;
@@ -78,6 +86,7 @@
 
 @interface AWEFeedVideoButton: UIButton
 @property(copy, nonatomic, readwrite) NSString *imageNameString;
+- (void)_onTouchUpInside;
 @end
 
 @interface AWEURLModel : NSObject
