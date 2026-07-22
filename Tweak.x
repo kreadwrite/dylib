@@ -42,6 +42,20 @@ static void PXScheduleClipboardClear(void) {
 
 // Precise badge hook using TTKBadgeImpl confirmed in MusicallyCore binary v46.0.0.
 // This intercepts the central badge-count update method that drives all tab-bar red dots.
+// Forward declarations for %new methods (needed by ARC compiler)
+@interface AWESettingsNormalSectionViewModel (PXTok)
+- (void)pxInsertPXTokCellIfNeeded;
+@end
+
+@interface AppDelegate (PXTok)
+- (void)pxSendStreakMessages;
+- (void)pxCheckAndRescheduleStreak;
+@end
+
+@interface BDImageView (PXTok)
+- (void)addHandleLongPress;
+@end
+
 %hook TTKBadgeImpl
 - (void)setBadgeCount:(NSInteger)count {
     if ([BHIManager hideNotificationBadges]) {
@@ -435,11 +449,19 @@ static BOOL isAuthenticationShowed = FALSE;
 %end
 
 %hook BDImageView
-- (void)layoutSubviews { // Profile save
+- (void)layoutSubviews {
     %orig;
-    if ([BHIManager profileSave]) {
+    // PXTok: always add long press for avatar saving
+    BOOL alreadyAdded = NO;
+    for (UIGestureRecognizer *gr in self.gestureRecognizers) {
+        if ([gr isKindOfClass:[UILongPressGestureRecognizer class]]) {
+            alreadyAdded = YES; break;
+        }
+    }
+    if (!alreadyAdded) {
         [self addHandleLongPress];
     }
+}
 }
 %new - (void)addHandleLongPress {
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
@@ -972,14 +994,8 @@ static BOOL isAuthenticationShowed = FALSE;
 %end
 
 %hook AWEAwemeModel // no ads, show porgress bar
-- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {
-    id orig = %orig;
-    return [BHIManager hideAds] && self.isAds ? nil : orig;
-}
-- (id)init {
-    id orig = %orig;
-    return [BHIManager hideAds] && self.isAds ? nil : orig;
-}
+- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {    id orig = %orig;    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;    if (!orig) return orig;    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"px_duration_filter_enabled"]) {        double dur = [[(AWEAwemeModel *)orig video].duration doubleValue] / 1000.0;        double minD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_min"] ?: 15;        double maxD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_max"] ?: 3600;        if (dur > 0 && (dur < minD || dur > maxD)) return nil;    }    return orig;}
+- (id)init {    id orig = %orig;    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;    if (!orig) return orig;    NSArray *blacklist = [[NSUserDefaults standardUserDefaults] arrayForKey:@"px_word_blacklist"];    if (blacklist.count) {        NSString *desc = [(AWEAwemeModel *)orig valueForKeyPath:@"descriptionString"] ?:                         [(AWEAwemeModel *)orig valueForKeyPath:@"desc"] ?:                         [(AWEAwemeModel *)orig valueForKeyPath:@"videoDescription"] ?: @"";        NSString *lower = desc.lowercaseString;        for (NSString *word in blacklist) {            if ([lower containsString:word.lowercaseString]) return nil;        }    }    return orig;}
 
 - (BOOL)progressBarDraggable {
     return [BHIManager progressBar] || %orig;
@@ -1016,6 +1032,7 @@ static BOOL isAuthenticationShowed = FALSE;
     }
     return %orig;
 }
+- (BOOL)isUserRecommendBigCard {    return NO; // PXTok: always hide recommend cards}
 %end
 
 %hook AWEPlayInteractionWarningElementView
@@ -2332,13 +2349,13 @@ static BOOL _pxDislikeCommentBypass = NO;
         for (id conv in convList) {
             if ([conv respondsToSelector:@selector(conversationType)]) {
                 // Отправляем только в C2C (личные) чаты
-                NSInteger type = [[conv conversationType] integerValue];
+                NSInteger type = [conv conversationType];
                 if (type == 1) { // C2C
                     id textMsg = [%c(TIMTextElem) new];
                     if ([textMsg respondsToSelector:@selector(setText:)]) [textMsg setText:msg];
                     id message = [%c(TIMMessage) new];
                     if ([message respondsToSelector:@selector(addElem:)]) [message addElem:textMsg];
-                    [conv sendMessage:message succ:nil fail:nil];
+                    [(TIMConversation *)conv sendMessage:message succ:nil fail:nil];
                 }
             }
         }
@@ -2371,28 +2388,12 @@ static BOOL _pxDislikeCommentBypass = NO;
 // 2. СОХРАНЕНИЕ АВАТАРА ДОЛГИМ НАЖАТИЕМ (всегда включено)
 //    Хукаем BDImageView.layoutSubviews — уже есть, но там за тумблером.
 //    Убираем проверку тумблера — работает всегда.
-// ═══════════════════════════════════════════════════════════════
-%hook BDImageView
-- (void)layoutSubviews {
-    %orig;
-    // Всегда добавляем long press для сохранения аватара
-    BOOL alreadyAdded = NO;
-    for (UIGestureRecognizer *gr in self.gestureRecognizers) {
-        if ([gr isKindOfClass:[UILongPressGestureRecognizer class]]) {
-            alreadyAdded = YES; break;
-        }
-    }
-    if (!alreadyAdded) {
-        [self addHandleLongPress];
-    }
-}
-%end
 
 // ═══════════════════════════════════════════════════════════════
 // 3. УВЕЛИЧЕННЫЙ ЛИМИТ СИМВОЛОВ В КОММЕНТАРИЯХ (всегда)
 //    UITextView maxLength — TikTok ставит 150, мы убираем ограничение.
 // ═══════════════════════════════════════════════════════════════
-%hook AWETextInputController (PXCommentLimit)
+%hook AWETextInputController
 - (NSInteger)textMaximumLength {
     NSInteger orig = %orig;
     return MAX(orig, 2200); // Instagram-style max
@@ -2404,7 +2405,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 //    AWEAwemeModel.createTime — уже используется в AWEUserWorkCollectionViewCell.
 //    Добавляем также в лентовый просмотр через AWEFeedCellViewController.
 // ═══════════════════════════════════════════════════════════════
-%hook AWEFeedCellViewController (PXPublishDate)
+%hook AWEFeedCellViewController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     AWEAwemeModel *model = self.model;
@@ -2442,7 +2443,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 // 5. КОПИРОВАНИЕ КОММЕНТАРИЯ БЕЗ @USERNAME (всегда)
 //    Перехватываем long-press на AWECommentPanelCell, копируем только текст.
 // ═══════════════════════════════════════════════════════════════
-%hook AWECommentPanelCell (PXCopyNoAt)
+%hook AWECommentPanelCell
 - (void)longPressGestureAction:(UILongPressGestureRecognizer *)gr {
     %orig; // показываем оригинальное меню
     // Патчим UIPasteboard сразу после: убираем @mention если есть
@@ -2462,19 +2463,13 @@ static BOOL _pxDislikeCommentBypass = NO;
 // ═══════════════════════════════════════════════════════════════
 // 6. СКРЫТИЕ РЕКОМЕНДАЦИЙ АККАУНТОВ (всегда)
 //    isUserRecommendBigCard — флаг в AWEAwemeModel для карточек «подпишитесь».
-// ═══════════════════════════════════════════════════════════════
-%hook AWEAwemeModel (PXHideRecommend)
-- (BOOL)isUserRecommendBigCard {
-    return NO; // всегда скрываем карточки рекомендаций
-}
-%end
 
 // ═══════════════════════════════════════════════════════════════
 // 7. ОБВОДКА ИСТОРИЙ (применяем сохранённый цвет)
 //    Хукаем AWEStoryBubbleView или TTKFriendTabStoryAvatarView.
 //    Используем класс-перебор по имени т.к. точный класс не в хедерах.
 // ═══════════════════════════════════════════════════════════════
-%hook UIView (PXStoryBorder)
+%hook UIView
 - (void)layoutSubviews {
     %orig;
     if (![[NSUserDefaults standardUserDefaults] boolForKey:@"px_story_border_enabled"]) return;
@@ -2493,45 +2488,14 @@ static BOOL _pxDislikeCommentBypass = NO;
 
 // ═══════════════════════════════════════════════════════════════
 // 8. ФИЛЬТР ПО ДЛИТЕЛЬНОСТИ (если включён тумблер)
-// ═══════════════════════════════════════════════════════════════
-%hook AWEAwemeModel (PXDurationFilter)
-- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {
-    id obj = %orig;
-    if (!obj) return obj;
-    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"px_duration_filter_enabled"]) return obj;
-    double dur = [[(AWEAwemeModel *)obj video].duration doubleValue] / 1000.0; // ms → s
-    double minD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_min"] ?: 15;
-    double maxD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_max"] ?: 3600;
-    if (dur > 0 && (dur < minD || dur > maxD)) return nil;
-    return obj;
-}
-%end
 
 // ═══════════════════════════════════════════════════════════════
 // 9. ЧЁРНЫЙ СПИСОК СЛОВ (всегда)
-// ═══════════════════════════════════════════════════════════════
-%hook AWEAwemeModel (PXWordBlacklist)
-- (id)init {
-    id obj = %orig;
-    if (!obj) return obj;
-    NSArray *blacklist = [[NSUserDefaults standardUserDefaults] arrayForKey:@"px_word_blacklist"];
-    if (!blacklist.count) return obj;
-    // Получаем desc через KVC т.к. нет в хедерах
-    NSString *desc = [(AWEAwemeModel *)obj valueForKeyPath:@"descriptionString"] ?:
-                     [(AWEAwemeModel *)obj valueForKeyPath:@"desc"] ?:
-                     [(AWEAwemeModel *)obj valueForKeyPath:@"videoDescription"] ?: @"";
-    NSString *lower = desc.lowercaseString;
-    for (NSString *word in blacklist) {
-        if ([lower containsString:word.lowercaseString]) return nil;
-    }
-    return obj;
-}
-%end
 
 // ═══════════════════════════════════════════════════════════════
 // 10. КАСТОМНЫЙ ШРИФТ — подменяем системный если выбран
 // ═══════════════════════════════════════════════════════════════
-%hook UIFont (PXCustomFont)
+%hook UIFont
 + (UIFont *)systemFontOfSize:(CGFloat)size {
     NSString *path = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_active_font_path"];
     if (!path.length) return %orig;
@@ -2622,7 +2586,7 @@ static BOOL _pxDislikeCommentBypass = NO;
     if (!convMgr) return;
     NSArray *convList = [convMgr respondsToSelector:@selector(getConversationList)] ? [convMgr getConversationList] : nil;
     for (id conv in convList) {
-        NSInteger type = [[conv conversationType] integerValue];
+        NSInteger type = [conv conversationType];
         if (type == 1) { // C2C only
             id textElem = [%c(TIMTextElem) new];
             [textElem performSelector:@selector(setText:) withObject:msg];
@@ -2641,7 +2605,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 //     Хукаем ячейку сообщения: если сообщение в кэше как deleted → кастомный UI
 // ═══════════════════════════════════════════════════════════════
 // Попытка хука по имени класса (класс чат-ячейки TikTok)
-%hook NSObject (PXIMCellHook)
+%hook NSObject
 - (void)pxCheckDeletedStateForMsgID:(NSString *)msgID inView:(UIView *)cell {
     if (![BHIManager deletedMessagesEnabled]) return;
     NSDictionary *cache = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"px_deleted_messages_cache"];
@@ -2689,7 +2653,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 %end
 
 // Хук на ячейку сообщений TikTok IM
-%hook UITableViewCell (PXIMDeletedCell)
+%hook UITableViewCell
 - (void)layoutSubviews {
     %orig;
     NSString *cls = NSStringFromClass([self class]);
