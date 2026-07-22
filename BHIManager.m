@@ -262,7 +262,6 @@
     NSNumber *number = [NSNumber numberWithFloat:per];
     return [numberFormatter stringFromNumber:number];
 }
-@end
 // ─── Режим призрака (новые) ───
 + (BOOL)ghostNoStoryMark {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_no_story_mark"];
@@ -307,3 +306,12 @@
 + (BOOL)isRussian {
     return [[[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"] isEqualToString:@"ru"];
 }
+
+// ─── Новые методы v1.1 ───
++ (BOOL)profileVideoCount {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_profile_video_count"];
+}
++ (BOOL)disablePullToRefresh {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_disable_pull_refresh"];
+}
+@end
