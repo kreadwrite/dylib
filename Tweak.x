@@ -462,7 +462,6 @@ static BOOL isAuthenticationShowed = FALSE;
         [self addHandleLongPress];
     }
 }
-}
 %new - (void)addHandleLongPress {
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
     longPress.minimumPressDuration = 0.3;
