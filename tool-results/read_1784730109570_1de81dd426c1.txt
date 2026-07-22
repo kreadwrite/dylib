@@ -1,0 +1,443 @@
+     1→﻿2026-07-22T13:44:27.6524000Z Current runner version: '2.335.1'
+     2→2026-07-22T13:44:27.6538890Z ##[group]Runner Image Provisioner
+     3→2026-07-22T13:44:27.6539450Z Hosted Compute Agent
+     4→2026-07-22T13:44:27.6539890Z Version: 20260624.560
+     5→2026-07-22T13:44:27.6540310Z Commit: 925d229a51159bc391ae97e54a2dd1fe20af789d
+     6→2026-07-22T13:44:27.6540770Z Build Date: 2026-06-24T18:26:47Z
+     7→2026-07-22T13:44:27.6541290Z Worker ID: {d48163d7-05ea-4fe5-9c4b-bab7526de28c}
+     8→2026-07-22T13:44:27.6541730Z Azure Region: westus
+     9→2026-07-22T13:44:27.6542080Z ##[endgroup]
+    10→2026-07-22T13:44:27.6542940Z ##[group]Operating System
+    11→2026-07-22T13:44:27.6543310Z macOS
+    12→2026-07-22T13:44:27.6543620Z 14.8.7
+    13→2026-07-22T13:44:27.6543920Z 23J520
+    14→2026-07-22T13:44:27.6544230Z ##[endgroup]
+    15→2026-07-22T13:44:27.6544550Z ##[group]Runner Image
+    16→2026-07-22T13:44:27.6544900Z Image: macos-14-arm64
+    17→2026-07-22T13:44:27.6545250Z Version: 20260629.0180.1
+    18→2026-07-22T13:44:27.6546050Z Included Software: https://github.com/actions/runner-images/blob/macos-14-arm64/20260629.0180/images/macos/macos-14-arm64-Readme.md
+    19→2026-07-22T13:44:27.6547040Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260629.0180
+    20→2026-07-22T13:44:27.6547670Z ##[endgroup]
+    21→2026-07-22T13:44:27.6548410Z ##[group]GITHUB_TOKEN Permissions
+    22→2026-07-22T13:44:27.6549430Z Contents: read
+    23→2026-07-22T13:44:27.6549760Z Metadata: read
+    24→2026-07-22T13:44:27.6550090Z Packages: read
+    25→2026-07-22T13:44:27.6550420Z ##[endgroup]
+    26→2026-07-22T13:44:27.6551690Z Secret source: Actions
+    27→2026-07-22T13:44:27.6552110Z Prepare workflow directory
+    28→2026-07-22T13:44:27.6955990Z Prepare all required actions
+    29→2026-07-22T13:44:27.6996330Z Getting action download info
+    30→2026-07-22T13:44:28.1687000Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+    31→2026-07-22T13:44:28.8267270Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+    32→2026-07-22T13:44:29.0181000Z Complete job name: build
+    33→2026-07-22T13:44:29.0662110Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+    34→2026-07-22T13:44:29.0671600Z ##[group]Run actions/checkout@v4
+    35→2026-07-22T13:44:29.0672120Z with:
+    36→2026-07-22T13:44:29.0672460Z   repository: kreadwrite/dylib
+    37→2026-07-22T13:44:29.0675740Z   token: ***
+    38→2026-07-22T13:44:29.0676060Z   ssh-strict: true
+    39→2026-07-22T13:44:29.0676390Z   ssh-user: git
+    40→2026-07-22T13:44:29.0676720Z   persist-credentials: true
+    41→2026-07-22T13:44:29.0677090Z   clean: true
+    42→2026-07-22T13:44:29.0677420Z   sparse-checkout-cone-mode: true
+    43→2026-07-22T13:44:29.0677820Z   fetch-depth: 1
+    44→2026-07-22T13:44:29.0678150Z   fetch-tags: false
+    45→2026-07-22T13:44:29.0678500Z   show-progress: true
+    46→2026-07-22T13:44:29.0678830Z   lfs: false
+    47→2026-07-22T13:44:29.0679210Z   submodules: false
+    48→2026-07-22T13:44:29.0679560Z   set-safe-directory: true
+    49→2026-07-22T13:44:29.0679960Z   allow-unsafe-pr-checkout: false
+    50→2026-07-22T13:44:29.0680530Z ##[endgroup]
+    51→2026-07-22T13:44:29.5762150Z Syncing repository: kreadwrite/dylib
+    52→2026-07-22T13:44:29.5764060Z ##[group]Getting Git version info
+    53→2026-07-22T13:44:29.5784200Z Working directory is '/Users/runner/work/dylib/dylib'
+    54→2026-07-22T13:44:29.5785600Z [command]/opt/homebrew/bin/git version
+    55→2026-07-22T13:44:29.6062900Z git version 2.54.0
+    56→2026-07-22T13:44:29.6082190Z ##[endgroup]
+    57→2026-07-22T13:44:29.6092640Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/4fe5480e-7e54-4e83-b264-f961d1170363/.gitconfig'
+    58→2026-07-22T13:44:29.6101300Z Temporarily overriding HOME='/Users/runner/work/_temp/4fe5480e-7e54-4e83-b264-f961d1170363' before making global git config changes
+    59→2026-07-22T13:44:29.6106300Z Adding repository directory to the temporary git global config as a safe directory
+    60→2026-07-22T13:44:29.6110570Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/dylib/dylib
+    61→2026-07-22T13:44:29.6228350Z Deleting the contents of '/Users/runner/work/dylib/dylib'
+    62→2026-07-22T13:44:29.6232290Z ##[group]Initializing the repository
+    63→2026-07-22T13:44:29.6237410Z [command]/opt/homebrew/bin/git init /Users/runner/work/dylib/dylib
+    64→2026-07-22T13:44:29.6495930Z hint: Using 'master' as the name for the initial branch. This default branch name
+    65→2026-07-22T13:44:29.6497830Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+    66→2026-07-22T13:44:29.6499630Z hint: to use in all of your new repositories, which will suppress this warning,
+    67→2026-07-22T13:44:29.6501220Z hint: call:
+    68→2026-07-22T13:44:29.6502060Z hint:
+    69→2026-07-22T13:44:29.6503180Z hint:      git config --global init.defaultBranch <name>
+    70→2026-07-22T13:44:29.6504460Z hint:
+    71→2026-07-22T13:44:29.6505580Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+    72→2026-07-22T13:44:29.6507480Z hint: 'development'. The just-created branch can be renamed via this command:
+    73→2026-07-22T13:44:29.6509040Z hint:
+    74→2026-07-22T13:44:29.6509870Z hint:      git branch -m <name>
+    75→2026-07-22T13:44:29.6511730Z hint:
+    76→2026-07-22T13:44:29.6512930Z hint: Disable this message with "git config set advice.defaultBranchName false"
+    77→2026-07-22T13:44:29.6514830Z Initialized empty Git repository in /Users/runner/work/dylib/dylib/.git/
+    78→2026-07-22T13:44:29.6518360Z [command]/opt/homebrew/bin/git remote add origin https://github.com/kreadwrite/dylib
+    79→2026-07-22T13:44:29.6581370Z ##[endgroup]
+    80→2026-07-22T13:44:29.6582850Z ##[group]Disabling automatic garbage collection
+    81→2026-07-22T13:44:29.6584300Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+    82→2026-07-22T13:44:29.6642130Z ##[endgroup]
+    83→2026-07-22T13:44:29.6644850Z ##[group]Setting up auth
+    84→2026-07-22T13:44:29.6654300Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+    85→2026-07-22T13:44:29.6739460Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+    86→2026-07-22T13:44:29.7903650Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+    87→2026-07-22T13:44:29.7997560Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+    88→2026-07-22T13:44:29.9159560Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+    89→2026-07-22T13:44:29.9572190Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+    90→2026-07-22T13:44:30.0503980Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+    91→2026-07-22T13:44:30.0714550Z ##[endgroup]
+    92→2026-07-22T13:44:30.0717290Z ##[group]Fetching the repository
+    93→2026-07-22T13:44:30.0723000Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +2c181f954a3faff8845553621b0f276b50879571:refs/remotes/origin/main
+    94→2026-07-22T13:44:31.3975980Z From https://github.com/kreadwrite/dylib
+    95→2026-07-22T13:44:31.3977590Z  * [new ref]         2c181f954a3faff8845553621b0f276b50879571 -> origin/main
+    96→2026-07-22T13:44:31.4078440Z ##[endgroup]
+    97→2026-07-22T13:44:31.4080810Z ##[group]Determining the checkout info
+    98→2026-07-22T13:44:31.4081680Z ##[endgroup]
+    99→2026-07-22T13:44:31.4083060Z [command]/opt/homebrew/bin/git sparse-checkout disable
+   100→2026-07-22T13:44:31.4154090Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+   101→2026-07-22T13:44:31.4203490Z ##[group]Checking out the ref
+   102→2026-07-22T13:44:31.4205860Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+   103→2026-07-22T13:44:31.8314170Z Switched to a new branch 'main'
+   104→2026-07-22T13:44:31.8323810Z branch 'main' set up to track 'origin/main'.
+   105→2026-07-22T13:44:31.8333350Z ##[endgroup]
+   106→2026-07-22T13:44:31.8406620Z [command]/opt/homebrew/bin/git log -1 --format=%H
+   107→2026-07-22T13:44:31.8494670Z 2c181f954a3faff8845553621b0f276b50879571
+   108→2026-07-22T13:44:31.8700150Z ##[group]Run git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+   109→2026-07-22T13:44:31.8700860Z git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+   110→2026-07-22T13:44:31.8701260Z echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+   111→2026-07-22T13:44:31.8701560Z brew install ldid
+   112→2026-07-22T13:44:31.8777030Z shell: /bin/bash -e {0}
+   113→2026-07-22T13:44:31.8777680Z ##[endgroup]
+   114→2026-07-22T13:44:31.9251190Z Cloning into '/Users/runner/theos'...
+   115→2026-07-22T13:44:32.7550700Z Submodule 'vendor/dm.pl' (https://github.com/theos/dm.pl.git) registered for path 'vendor/dm.pl'
+   116→2026-07-22T13:44:32.7552030Z Submodule 'vendor/include' (https://github.com/theos/headers.git) registered for path 'vendor/include'
+   117→2026-07-22T13:44:32.7553940Z Submodule 'vendor/lib' (https://github.com/theos/lib.git) registered for path 'vendor/lib'
+   118→2026-07-22T13:44:32.7556270Z Submodule 'vendor/logos' (https://github.com/theos/logos.git) registered for path 'vendor/logos'
+   119→2026-07-22T13:44:32.7564200Z Submodule 'vendor/nic' (https://github.com/theos/nic.git) registered for path 'vendor/nic'
+   120→2026-07-22T13:44:32.7570980Z Submodule 'vendor/orion' (https://github.com/theos/orion.git) registered for path 'vendor/orion'
+   121→2026-07-22T13:44:32.7577490Z Submodule 'vendor/swift-support' (https://github.com/theos/swift-support.git) registered for path 'vendor/swift-support'
+   122→2026-07-22T13:44:32.7583230Z Submodule 'vendor/templates' (https://github.com/theos/templates.git) registered for path 'vendor/templates'
+   123→2026-07-22T13:44:32.7694140Z Cloning into '/Users/runner/theos/vendor/dm.pl'...
+   124→2026-07-22T13:44:33.2477260Z Cloning into '/Users/runner/theos/vendor/include'...
+   125→2026-07-22T13:44:34.1041520Z Cloning into '/Users/runner/theos/vendor/lib'...
+   126→2026-07-22T13:44:34.7425860Z Cloning into '/Users/runner/theos/vendor/logos'...
+   127→2026-07-22T13:44:35.2855160Z Cloning into '/Users/runner/theos/vendor/nic'...
+   128→2026-07-22T13:44:35.9821290Z Cloning into '/Users/runner/theos/vendor/orion'...
+   129→2026-07-22T13:44:36.8191780Z Cloning into '/Users/runner/theos/vendor/swift-support'...
+   130→2026-07-22T13:44:37.4964350Z Cloning into '/Users/runner/theos/vendor/templates'...
+   131→2026-07-22T13:44:38.0125350Z Submodule path 'vendor/dm.pl': checked out 'd9a3b72e274226dd2823c0a7c1d6d05099f4f51c'
+   132→2026-07-22T13:44:38.1464090Z Submodule path 'vendor/include': checked out '13c1f17176d7efe6871551cd69a75b71ac4eeaf1'
+   133→2026-07-22T13:44:38.2193360Z Submodule path 'vendor/lib': checked out '6f2af307568e6b8c52181d26314b0cd69ffaf188'
+   134→2026-07-22T13:44:38.2693580Z Submodule path 'vendor/logos': checked out '777925d1add4ee3485a2432a6f6d5e3ded59de7b'
+   135→2026-07-22T13:44:38.3018330Z Submodule path 'vendor/nic': checked out '4e7adcbeac2e4636b91e2f76341adfe4c4d0ceec'
+   136→2026-07-22T13:44:38.3525280Z Submodule path 'vendor/orion': checked out 'c0ed879ecaae16f3c8d06a6c36302f6c78d1f7e4'
+   137→2026-07-22T13:44:38.3585930Z Submodule 'fishhook' (https://github.com/facebook/fishhook.git) registered for path 'vendor/orion/fishhook'
+   138→2026-07-22T13:44:38.3673140Z Cloning into '/Users/runner/theos/vendor/orion/fishhook'...
+   139→2026-07-22T13:44:38.8395400Z Submodule path 'vendor/orion/fishhook': checked out 'aadc161ac3b80db07a9908851839a17ba63a9eb1'
+   140→2026-07-22T13:44:38.8800830Z Submodule path 'vendor/swift-support': checked out '4cf59ff04cdb2ceb27ea2228753e0497297b6182'
+   141→2026-07-22T13:44:38.9375610Z Submodule path 'vendor/templates': checked out '6c3944e281c4726f1383755d0fbb642840312d28'
+   142→2026-07-22T13:44:42.2069470Z ##[warning]The following taps are not trusted:
+   143→  aws/tap
+   144→
+   145→Homebrew is currently ignoring formulae, casks and commands from these taps because tap trust is required.
+   146→Untap them with:
+   147→  brew untap aws/tap
+   148→Trust specific formulae, casks and commands with:
+   149→  brew trust --formula <user>/<tap>/<formula>
+   150→  brew trust --cask <user>/<tap>/<cask>
+   151→  brew trust --command <user>/<tap>/<command>
+   152→Whole-tap trust is broader and includes all current and future formulae,
+   153→casks and commands from the listed taps. Trust whole taps with:
+   154→  brew trust aws/tap
+   155→To disable trust checks:
+   156→  export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
+   157→This is not recommended and will be removed in a later release.
+   158→For more information, see:
+   159→  https://docs.brew.sh/Tap-Trust
+   160→
+   161→2026-07-22T13:44:42.8818690Z ==> Would install 1 formula:
+   162→2026-07-22T13:44:42.8819460Z ldid
+   163→2026-07-22T13:44:42.8850000Z ==> Downloading https://ghcr.io/v2/homebrew/core/ldid/manifests/2.1.5_1-1
+   164→2026-07-22T13:44:43.2191450Z ==> Would install 1 dependency for ldid:
+   165→2026-07-22T13:44:43.2192430Z libplist
+   166→2026-07-22T13:44:43.2193670Z ==> Fetching downloads for: ldid
+   167→2026-07-22T13:44:43.5095570Z ✔︎ Bottle Manifest libplist (2.7.0)
+   168→2026-07-22T13:44:43.6356540Z ✔︎ Bottle libplist (2.7.0)
+   169→2026-07-22T13:44:43.6357210Z ✔︎ Bottle ldid (2.1.5_1)
+   170→2026-07-22T13:44:43.8116140Z ==> Installing ldid dependency: libplist
+   171→2026-07-22T13:44:43.8229040Z ==> Pouring libplist--2.7.0.arm64_sonoma.bottle.tar.gz
+   172→2026-07-22T13:44:44.1013270Z 🍺  /opt/homebrew/Cellar/libplist/2.7.0: 32 files, 660.7KB
+   173→2026-07-22T13:44:44.1032880Z ==> Pouring ldid--2.1.5_1.arm64_sonoma.bottle.1.tar.gz
+   174→2026-07-22T13:44:44.2704770Z 🍺  /opt/homebrew/Cellar/ldid/2.1.5_1: 6 files, 288KB
+   175→2026-07-22T13:44:44.2911430Z ##[group]Run git clone --depth 1 https://github.com/theos/sdks.git "$HOME/sdks-tmp"
+   176→2026-07-22T13:44:44.2911950Z git clone --depth 1 https://github.com/theos/sdks.git "$HOME/sdks-tmp"
+   177→2026-07-22T13:44:44.2912280Z mkdir -p "$HOME/theos/sdks"
+   178→2026-07-22T13:44:44.2912610Z cp -r "$HOME/sdks-tmp/iPhoneOS16.5.sdk" "$HOME/theos/sdks/"
+   179→2026-07-22T13:44:44.2964190Z shell: /bin/bash -e {0}
+   180→2026-07-22T13:44:44.2964390Z env:
+   181→2026-07-22T13:44:44.2964570Z   THEOS: /Users/runner/theos
+   182→2026-07-22T13:44:44.2964770Z ##[endgroup]
+   183→2026-07-22T13:44:44.3522640Z Cloning into '/Users/runner/sdks-tmp'...
+   184→2026-07-22T13:45:06.4043830Z Updating files:  10% (5644/56286)
+   185→2026-07-22T13:45:06.4749290Z Updating files:  11% (6192/56286)
+   186→2026-07-22T13:45:06.5561930Z Updating files:  12% (6755/56286)
+   187→2026-07-22T13:45:06.6166850Z Updating files:  13% (7318/56286)
+   188→2026-07-22T13:45:06.7532830Z Updating files:  14% (7881/56286)
+   189→2026-07-22T13:45:06.8500270Z Updating files:  15% (8443/56286)
+   190→2026-07-22T13:45:06.9346440Z Updating files:  16% (9006/56286)
+   191→2026-07-22T13:45:07.0066320Z Updating files:  17% (9569/56286)
+   192→2026-07-22T13:45:07.0655430Z Updating files:  18% (10132/56286)
+   193→2026-07-22T13:45:07.1318020Z Updating files:  19% (10695/56286)
+   194→2026-07-22T13:45:07.2134830Z Updating files:  20% (11258/56286)
+   195→2026-07-22T13:45:07.2506570Z Updating files:  21% (11821/56286)
+   196→2026-07-22T13:45:07.3600380Z Updating files:  21% (11995/56286)
+   197→2026-07-22T13:45:07.4341630Z Updating files:  22% (12383/56286)
+   198→2026-07-22T13:45:07.5039420Z Updating files:  23% (12946/56286)
+   199→2026-07-22T13:45:07.6220200Z Updating files:  24% (13509/56286)
+   200→2026-07-22T13:45:07.6994970Z Updating files:  25% (14072/56286)
+   201→2026-07-22T13:45:07.7841030Z Updating files:  26% (14635/56286)
+   202→2026-07-22T13:45:07.8842730Z Updating files:  27% (15198/56286)
+   203→2026-07-22T13:45:07.9598790Z Updating files:  28% (15761/56286)
+   204→2026-07-22T13:45:08.1056550Z Updating files:  29% (16323/56286)
+   205→2026-07-22T13:45:08.2513660Z Updating files:  30% (16886/56286)
+   206→2026-07-22T13:45:08.2516790Z Updating files:  30% (17445/56286)
+   207→2026-07-22T13:45:08.3192220Z Updating files:  31% (17449/56286)
+   208→2026-07-22T13:45:08.4100010Z Updating files:  32% (18012/56286)
+   209→2026-07-22T13:45:08.4998440Z Updating files:  33% (18575/56286)
+   210→2026-07-22T13:45:08.5875450Z Updating files:  34% (19138/56286)
+   211→2026-07-22T13:45:08.6712020Z Updating files:  35% (19701/56286)
+   212→2026-07-22T13:45:08.7519530Z Updating files:  36% (20263/56286)
+   213→2026-07-22T13:45:08.8308420Z Updating files:  37% (20826/56286)
+   214→2026-07-22T13:45:08.9794110Z Updating files:  38% (21389/56286)
+   215→2026-07-22T13:45:09.1556630Z Updating files:  39% (21952/56286)
+   216→2026-07-22T13:45:09.2516990Z Updating files:  40% (22515/56286)
+   217→2026-07-22T13:45:09.2607690Z Updating files:  40% (23006/56286)
+   218→2026-07-22T13:45:09.3468740Z Updating files:  41% (23078/56286)
+   219→2026-07-22T13:45:09.4251070Z Updating files:  42% (23641/56286)
+   220→2026-07-22T13:45:09.5009080Z Updating files:  43% (24203/56286)
+   221→2026-07-22T13:45:09.5640270Z Updating files:  44% (24766/56286)
+   222→2026-07-22T13:45:09.6334430Z Updating files:  45% (25329/56286)
+   223→2026-07-22T13:45:09.7113180Z Updating files:  46% (25892/56286)
+   224→2026-07-22T13:45:09.7925980Z Updating files:  47% (26455/56286)
+   225→2026-07-22T13:45:09.9943720Z Updating files:  48% (27018/56286)
+   226→2026-07-22T13:45:10.1508770Z Updating files:  49% (27581/56286)
+   227→2026-07-22T13:45:10.2184690Z Updating files:  50% (28143/56286)
+   228→2026-07-22T13:45:10.2536820Z Updating files:  51% (28706/56286)
+   229→2026-07-22T13:45:10.3243360Z Updating files:  51% (28968/56286)
+   230→2026-07-22T13:45:10.4473230Z Updating files:  52% (29269/56286)
+   231→2026-07-22T13:45:10.5408860Z Updating files:  53% (29832/56286)
+   232→2026-07-22T13:45:10.6775160Z Updating files:  54% (30395/56286)
+   233→2026-07-22T13:45:10.7976870Z Updating files:  55% (30958/56286)
+   234→2026-07-22T13:45:10.9431280Z Updating files:  56% (31521/56286)
+   235→2026-07-22T13:45:11.0222700Z Updating files:  57% (32084/56286)
+   236→2026-07-22T13:45:11.1526710Z Updating files:  58% (32646/56286)
+   237→2026-07-22T13:45:11.2547610Z Updating files:  59% (33209/56286)
+   238→2026-07-22T13:45:11.3560400Z Updating files:  59% (33520/56286)
+   239→2026-07-22T13:45:11.5244370Z Updating files:  60% (33772/56286)
+   240→2026-07-22T13:45:11.6458630Z Updating files:  61% (34335/56286)
+   241→2026-07-22T13:45:11.7775130Z Updating files:  62% (34898/56286)
+   242→2026-07-22T13:45:11.9638070Z Updating files:  63% (35461/56286)
+   243→2026-07-22T13:45:12.0956480Z Updating files:  64% (36024/56286)
+   244→2026-07-22T13:45:12.2540150Z Updating files:  65% (36586/56286)
+   245→2026-07-22T13:45:12.2650070Z Updating files:  65% (37125/56286)
+   246→2026-07-22T13:45:12.4012930Z Updating files:  66% (37149/56286)
+   247→2026-07-22T13:45:12.4630200Z Updating files:  67% (37712/56286)
+   248→2026-07-22T13:45:12.5338200Z Updating files:  68% (38275/56286)
+   249→2026-07-22T13:45:12.6044100Z Updating files:  69% (38838/56286)
+   250→2026-07-22T13:45:12.7545170Z Updating files:  70% (39401/56286)
+   251→2026-07-22T13:45:12.8603090Z Updating files:  71% (39964/56286)
+   252→2026-07-22T13:45:13.0919810Z Updating files:  72% (40526/56286)
+   253→2026-07-22T13:45:13.2543220Z Updating files:  73% (41089/56286)
+   254→2026-07-22T13:45:13.3093600Z Updating files:  73% (41579/56286)
+   255→2026-07-22T13:45:13.4099040Z Updating files:  74% (41652/56286)
+   256→2026-07-22T13:45:13.4867630Z Updating files:  75% (42215/56286)
+   257→2026-07-22T13:45:13.5816720Z Updating files:  76% (42778/56286)
+   258→2026-07-22T13:45:13.7201230Z Updating files:  77% (43341/56286)
+   259→2026-07-22T13:45:13.8262410Z Updating files:  78% (43904/56286)
+   260→2026-07-22T13:45:13.9306480Z Updating files:  79% (44466/56286)
+   261→2026-07-22T13:45:14.0353290Z Updating files:  80% (45029/56286)
+   262→2026-07-22T13:45:14.1392470Z Updating files:  81% (45592/56286)
+   263→2026-07-22T13:45:14.2159110Z Updating files:  82% (46155/56286)
+   264→2026-07-22T13:45:14.2538370Z Updating files:  83% (46718/56286)
+   265→2026-07-22T13:45:14.2960220Z Updating files:  83% (46998/56286)
+   266→2026-07-22T13:45:14.3740180Z Updating files:  84% (47281/56286)
+   267→2026-07-22T13:45:14.4646170Z Updating files:  85% (47844/56286)
+   268→2026-07-22T13:45:14.5846370Z Updating files:  86% (48406/56286)
+   269→2026-07-22T13:45:14.7930210Z Updating files:  87% (48969/56286)
+   270→2026-07-22T13:45:15.2532340Z Updating files:  88% (49532/56286)
+   271→2026-07-22T13:45:15.2543800Z Updating files:  89% (50095/56286)
+   272→2026-07-22T13:45:15.4853500Z Updating files:  89% (50098/56286)
+   273→2026-07-22T13:45:15.6340900Z Updating files:  90% (50658/56286)
+   274→2026-07-22T13:45:15.7853430Z Updating files:  91% (51221/56286)
+   275→2026-07-22T13:45:15.9549170Z Updating files:  92% (51784/56286)
+   276→2026-07-22T13:45:16.1400100Z Updating files:  93% (52346/56286)
+   277→2026-07-22T13:45:16.2617530Z Updating files:  94% (52909/56286)
+   278→2026-07-22T13:45:16.3440660Z Updating files:  94% (53197/56286)
+   279→2026-07-22T13:45:16.4931390Z Updating files:  95% (53472/56286)
+   280→2026-07-22T13:45:16.6657730Z Updating files:  96% (54035/56286)
+   281→2026-07-22T13:45:16.9182410Z Updating files:  97% (54598/56286)
+   282→2026-07-22T13:45:17.0562350Z Updating files:  98% (55161/56286)
+   283→2026-07-22T13:45:17.2130690Z Updating files:  99% (55724/56286)
+   284→2026-07-22T13:45:17.2231960Z Updating files: 100% (56286/56286)
+   285→2026-07-22T13:45:17.2332960Z Updating files: 100% (56286/56286), done.
+   286→2026-07-22T13:45:20.5219810Z ##[group]Run SDK="$HOME/theos/sdks/iPhoneOS16.5.sdk"
+   287→2026-07-22T13:45:20.5220650Z SDK="$HOME/theos/sdks/iPhoneOS16.5.sdk"
+   288→2026-07-22T13:45:20.5221000Z 
+   289→2026-07-22T13:45:20.5221160Z clang -arch arm64 \
+   290→2026-07-22T13:45:20.5221370Z   -isysroot "$SDK" \
+   291→2026-07-22T13:45:20.5221570Z   -target arm64-apple-ios14.0 \
+   292→2026-07-22T13:45:20.5221780Z   -fobjc-arc \
+   293→2026-07-22T13:45:20.5221960Z   -Wno-deprecated-declarations \
+   294→2026-07-22T13:45:20.5222170Z   -dynamiclib \
+   295→2026-07-22T13:45:20.5222400Z   -o /tmp/CydiaSubstrate_arm64.dylib \
+   296→2026-07-22T13:45:20.5222650Z   scripts/SubstrateShim.m \
+   297→2026-07-22T13:45:20.5222870Z   -framework Foundation \
+   298→2026-07-22T13:45:20.5223070Z   -framework UIKit \
+   299→2026-07-22T13:45:20.5223270Z   -lobjc \
+   300→2026-07-22T13:45:20.5223550Z   -install_name /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate
+   301→2026-07-22T13:45:20.5223940Z 
+   302→2026-07-22T13:45:20.5224080Z clang -arch arm64e \
+   303→2026-07-22T13:45:20.5224280Z   -isysroot "$SDK" \
+   304→2026-07-22T13:45:20.5224480Z   -target arm64e-apple-ios14.0 \
+   305→2026-07-22T13:45:20.5224730Z   -fobjc-arc \
+   306→2026-07-22T13:45:20.5224930Z   -Wno-deprecated-declarations \
+   307→2026-07-22T13:45:20.5225200Z   -dynamiclib \
+   308→2026-07-22T13:45:20.5225440Z   -o /tmp/CydiaSubstrate_arm64e.dylib \
+   309→2026-07-22T13:45:20.5225720Z   scripts/SubstrateShim.m \
+   310→2026-07-22T13:45:20.5225950Z   -framework Foundation \
+   311→2026-07-22T13:45:20.5226190Z   -framework UIKit \
+   312→2026-07-22T13:45:20.5226380Z   -lobjc \
+   313→2026-07-22T13:45:20.5226680Z   -install_name /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate
+   314→2026-07-22T13:45:20.5227030Z 
+   315→2026-07-22T13:45:20.5227680Z lipo -create /tmp/CydiaSubstrate_arm64.dylib /tmp/CydiaSubstrate_arm64e.dylib \
+   316→2026-07-22T13:45:20.5228430Z   -output CydiaSubstrate.dylib
+   317→2026-07-22T13:45:20.5228650Z 
+   318→2026-07-22T13:45:20.5228800Z ldid -S CydiaSubstrate.dylib
+   319→2026-07-22T13:45:20.5229020Z 
+   320→2026-07-22T13:45:20.5229170Z echo "CydiaSubstrate shim built:"
+   321→2026-07-22T13:45:20.5229410Z ls -la CydiaSubstrate.dylib
+   322→2026-07-22T13:45:20.5229640Z file CydiaSubstrate.dylib
+   323→2026-07-22T13:45:20.5497360Z shell: /bin/bash -e {0}
+   324→2026-07-22T13:45:20.5497660Z env:
+   325→2026-07-22T13:45:20.5497910Z   THEOS: /Users/runner/theos
+   326→2026-07-22T13:45:20.5498140Z ##[endgroup]
+   327→2026-07-22T13:45:21.1993980Z ld: warning: ignoring duplicate libraries: '-lobjc'
+   328→2026-07-22T13:45:21.4070320Z ld: warning: ignoring duplicate libraries: '-lobjc'
+   329→2026-07-22T13:45:23.2910800Z CydiaSubstrate shim built:
+   330→2026-07-22T13:45:23.3010390Z -rwxr-xr-x  1 runner  staff  133008 Jul 22 13:45 CydiaSubstrate.dylib
+   331→2026-07-22T13:45:23.3102550Z CydiaSubstrate.dylib: Mach-O universal binary with 2 architectures: [arm64:Mach-O 64-bit dynamically linked shared library arm64] [arm64e:Mach-O 64-bit dynamically linked shared library arm64e]
+   332→2026-07-22T13:45:23.3109290Z CydiaSubstrate.dylib (for architecture arm64):     Mach-O 64-bit dynamically linked shared library arm64
+   333→2026-07-22T13:45:23.3128640Z CydiaSubstrate.dylib (for architecture arm64e):    Mach-O 64-bit dynamically linked shared library arm64e
+   334→2026-07-22T13:45:23.3177570Z ##[group]Run make package FINALPACKAGE=1
+   335→2026-07-22T13:45:23.3177870Z make package FINALPACKAGE=1
+   336→2026-07-22T13:45:23.3294120Z shell: /bin/bash -e {0}
+   337→2026-07-22T13:45:23.3294790Z env:
+   338→2026-07-22T13:45:23.3295250Z   THEOS: /Users/runner/theos
+   339→2026-07-22T13:45:23.3296680Z ##[endgroup]
+   340→2026-07-22T13:45:29.5807570Z ==> Notice: Build may be slow as Theos isn’t using all available CPU cores on this computer. Consider upgrading GNU Make: https://theos.dev/docs/parallel-building
+   341→2026-07-22T13:45:29.7267040Z > Making all for tweak PXTikTok…
+   342→2026-07-22T13:45:31.2347130Z ==> Preprocessing Tweak.x…
+   343→2026-07-22T13:45:31.4803070Z ==> Compiling Tweak.x (arm64)…
+   344→2026-07-22T13:45:33.5559330Z In file included from Tweak.x:1:
+   345→2026-07-22T13:45:33.5566600Z /Users/runner/work/dylib/dylib/TikTokHeaders.h:441:1: error: duplicate interface definition for class 'TTKProfileBaseComponentModel'
+   346→2026-07-22T13:45:33.5569600Z @interface TTKProfileBaseComponentModel : NSObject
+   347→2026-07-22T13:45:33.5570290Z ^
+   348→2026-07-22T13:45:33.5571000Z /Users/runner/work/dylib/dylib/TikTokHeaders.h:398:12: note: previous definition is here
+   349→2026-07-22T13:45:33.5579120Z @interface TTKProfileBaseComponentModel : NSObject
+   350→2026-07-22T13:45:33.5579620Z            ^
+   351→2026-07-22T13:45:33.5580390Z /Users/runner/work/dylib/dylib/TikTokHeaders.h:442:38: error: property has a previous declaration
+   352→2026-07-22T13:45:33.5581340Z @property(nonatomic, copy) NSString *componentID;
+   353→2026-07-22T13:45:33.5583470Z                                      ^
+   354→2026-07-22T13:45:33.5584270Z /Users/runner/work/dylib/dylib/TikTokHeaders.h:399:41: note: property declared here
+   355→2026-07-22T13:45:33.5615880Z @property (nonatomic, strong) NSString *componentID;
+   356→2026-07-22T13:45:33.5616730Z                                         ^
+   357→2026-07-22T13:45:33.5617470Z /Users/runner/work/dylib/dylib/TikTokHeaders.h:443:38: error: property has a previous declaration
+   358→2026-07-22T13:45:33.5618170Z @property(nonatomic, copy) NSString *name;
+   359→2026-07-22T13:45:33.5618700Z                                      ^
+   360→2026-07-22T13:45:33.5619440Z /Users/runner/work/dylib/dylib/TikTokHeaders.h:400:50: note: property declared here
+   361→2026-07-22T13:45:33.5620040Z @property (nonatomic, copy, readwrite) NSString *name;
+   362→2026-07-22T13:45:33.5620740Z                                                  ^
+   363→2026-07-22T13:45:33.5939930Z Tweak.x:423:21: error: no known class method for selector 'profileVideoCount'
+   364→2026-07-22T13:45:33.5940610Z     if ([BHIManager profileVideoCount]){
+   365→2026-07-22T13:45:33.5941200Z                     ^~~~~~~~~~~~~~~~~
+   366→2026-07-22T13:45:33.5954940Z Tweak.x:513:11: error: no visible @interface for 'AWESettingsNormalSectionViewModel' declares the selector 'pxInsertPXTokCellIfNeeded'
+   367→2026-07-22T13:45:33.5956080Z     [self pxInsertPXTokCellIfNeeded];
+   368→2026-07-22T13:45:33.5956600Z      ~~~~ ^~~~~~~~~~~~~~~~~~~~~~~~~
+   369→2026-07-22T13:45:33.5957750Z Tweak.x:517:11: error: no visible @interface for 'AWESettingsNormalSectionViewModel' declares the selector 'pxInsertPXTokCellIfNeeded'
+   370→2026-07-22T13:45:33.5958780Z     [self pxInsertPXTokCellIfNeeded];
+   371→2026-07-22T13:45:33.5959390Z      ~~~~ ^~~~~~~~~~~~~~~~~~~~~~~~~
+   372→2026-07-22T13:45:33.5971790Z Tweak.x:522:27: error: property 'cellPlugins' not found on object of type 'AWESettingsNormalSectionViewModel *'
+   373→2026-07-22T13:45:33.5972400Z     for (id model in self.cellPlugins) {
+   374→2026-07-22T13:45:33.5972730Z                           ^
+   375→2026-07-22T13:45:33.6006090Z Tweak.x:1057:21: error: no known class method for selector 'disablePullToRefresh'
+   376→2026-07-22T13:45:33.6007700Z     if ([BHIManager disablePullToRefresh]){
+   377→2026-07-22T13:45:33.6008060Z                     ^~~~~~~~~~~~~~~~~~~~
+   378→2026-07-22T13:45:33.6098790Z Tweak.x:2287:73: error: no known instance method for selector 'msgID'
+   379→2026-07-22T13:45:33.6106720Z             if (sg respondsToSelector:@selector(msgID)]) msgId = sg msgID];
+   380→2026-07-22T13:45:33.6107360Z                                                                         ^~~~~
+   381→2026-07-22T13:45:33.6108080Z Tweak.x:2288:81: error: no known instance method for selector 'textContent'
+   382→2026-07-22T13:45:33.6108660Z             if (sg respondsToSelector:@selector(textContent)]) content = sg textContent];
+   383→2026-07-22T13:45:33.6109240Z                                                                                 ^~~~~~~~~~~
+   384→2026-07-22T13:45:33.6109850Z Tweak.x:2298:84: error: no known instance method for selector 'msgID'
+   385→2026-07-22T13:45:33.6110540Z         NSString *msgId = essage respondsToSelector:@selector(msgID)] ? essage msgID] : nil;
+   386→2026-07-22T13:45:33.6111080Z                                                                                    ^~~~~
+   387→2026-07-22T13:45:33.6112210Z Tweak.x:2318:3: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+   388→2026-07-22T13:45:33.6112810Z  (PXStreak)
+   389→2026-07-22T13:45:33.6113150Z   ^
+   390→2026-07-22T13:45:33.6113440Z  int
+   391→2026-07-22T13:45:33.6113910Z Tweak.x:2318:12: error: expected ';' after top level declarator
+   392→2026-07-22T13:45:33.6114280Z  (PXStreak)
+   393→2026-07-22T13:45:33.6114550Z            ^
+   394→2026-07-22T13:45:33.6114830Z            ;
+   395→2026-07-22T13:45:33.6115380Z Tweak.x:2335:41: error: no known instance method for selector 'conversationType'
+   396→2026-07-22T13:45:33.6116030Z                 NSInteger type = [[conv conversationType] integerValue];
+   397→2026-07-22T13:45:33.6116490Z                                         ^~~~~~~~~~~~~~~~
+   398→2026-07-22T13:45:33.6153970Z Tweak.x:2341:27: error: no known instance method for selector 'sendMessage:succ:fail:'
+   399→2026-07-22T13:45:33.6154580Z                     [conv sendMessage:message succ:nil fail:nil];
+   400→2026-07-22T13:45:33.6155100Z                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   401→2026-07-22T13:45:33.6155970Z Tweak.x:2375:3: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+   402→2026-07-22T13:45:33.6156550Z  (PXAlwaysSaveAvatar)
+   403→2026-07-22T13:45:33.6156940Z   ^
+   404→2026-07-22T13:45:33.6157230Z  int
+   405→2026-07-22T13:45:33.6184060Z Tweak.x:2375:22: error: expected ';' after top level declarator
+   406→2026-07-22T13:45:33.6184620Z  (PXAlwaysSaveAvatar)
+   407→2026-07-22T13:45:33.6185090Z                      ^
+   408→2026-07-22T13:45:33.6185560Z                      ;
+   409→2026-07-22T13:45:33.6186500Z Tweak.x:2376:13: error: redefinition of '_logos_method$_ungrouped$BDImageView$layoutSubviews'
+   410→2026-07-22T13:45:33.6187640Z static void _logos_method$_ungrouped$BDImageView$layoutSubviews(_LOGOS_SELF_TYPE_NORMAL BDImageView* _LOGOS_SELF_CONST __unused self, SEL __unused _cmd) {
+   411→2026-07-22T13:45:33.6188220Z             ^
+   412→2026-07-22T13:45:33.6188690Z Tweak.x:438:13: note: previous definition is here
+   413→2026-07-22T13:45:33.6189390Z static void _logos_method$_ungrouped$BDImageView$layoutSubviews(_LOGOS_SELF_TYPE_NORMAL BDImageView* _LOGOS_SELF_CONST __unused self, SEL __unused _cmd) { 
+   414→2026-07-22T13:45:33.6190040Z             ^
+   415→2026-07-22T13:45:33.6190620Z Tweak.x:2382:38: error: property 'action' not found on object of type 'UIGestureRecognizer *'
+   416→2026-07-22T13:45:33.6191800Z             [NSStringFromSelector(gr.action) containsString:@"LongPress"]) {
+   417→2026-07-22T13:45:33.6192210Z                                      ^
+   418→2026-07-22T13:45:33.6193030Z fatal error: too many errors emitted, stopping now [-ferror-limit=]
+   419→2026-07-22T13:45:33.6717230Z 20 errors generated.
+   420→2026-07-22T13:45:33.6753060Z make[3]: *** [/Users/runner/work/dylib/dylib/.theos/obj/arm64/Tweak.x.7347f96c.o] Error 1
+   421→2026-07-22T13:45:33.6754370Z rm /Users/runner/work/dylib/dylib/.theos/obj/arm64/Tweak.x.m
+   422→2026-07-22T13:45:33.6756760Z make[2]: *** [/Users/runner/work/dylib/dylib/.theos/obj/arm64/PXTikTok.dylib] Error 2
+   423→2026-07-22T13:45:33.6758990Z make[1]: *** [internal-library-all_] Error 2
+   424→2026-07-22T13:45:33.6763610Z make: *** [PXTikTok.all.tweak.variables] Error 2
+   425→2026-07-22T13:45:33.6774720Z ##[error]Process completed with exit code 2.
+   426→2026-07-22T13:45:33.6924800Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+   427→2026-07-22T13:45:33.6926800Z Post job cleanup.
+   428→2026-07-22T13:45:34.0035660Z [command]/opt/homebrew/bin/git version
+   429→2026-07-22T13:45:34.0165650Z git version 2.54.0
+   430→2026-07-22T13:45:34.0190650Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/5cf528ee-4aba-47be-a83f-e16be3bcd0d2/.gitconfig'
+   431→2026-07-22T13:45:34.0199630Z Temporarily overriding HOME='/Users/runner/work/_temp/5cf528ee-4aba-47be-a83f-e16be3bcd0d2' before making global git config changes
+   432→2026-07-22T13:45:34.0200400Z Adding repository directory to the temporary git global config as a safe directory
+   433→2026-07-22T13:45:34.0202160Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/dylib/dylib
+   434→2026-07-22T13:45:34.0304720Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+   435→2026-07-22T13:45:34.0315810Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+   436→2026-07-22T13:45:34.1337820Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+   437→2026-07-22T13:45:34.1378820Z http.https://github.com/.extraheader
+   438→2026-07-22T13:45:34.1727680Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+   439→2026-07-22T13:45:34.1873700Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+   440→2026-07-22T13:45:34.2388980Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+   441→2026-07-22T13:45:34.2438150Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+   442→2026-07-22T13:45:34.3775480Z Cleaning up orphan processes
+   443→2026-07-22T13:45:35.3070280Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

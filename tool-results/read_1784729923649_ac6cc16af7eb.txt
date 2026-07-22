@@ -1,0 +1,502 @@
+  1200→  1200→            _pxFollowAvatarBypass = NO;
+  1201→  1201→        });
+  1202→  1202→    } else {
+  1203→  1203→        %orig;
+  1204→  1204→    }
+  1205→  1205→}
+  1206→  1206→%end
+  1207→  1207→
+  1208→  1208→// TTKProfileBaseComponentModel — fake data removed in v1.1
+  1209→  1209→
+  1210→  1210→static BOOL _pxLikeConfirmBypass = NO;
+  1211→  1211→
+  1212→  1212→%hook AWEFeedVideoButton // like feed confirmation
+  1213→  1213→- (void)_onTouchUpInside {
+  1214→  1214→    if (!_pxLikeConfirmBypass && [BHIManager likeConfirmation] && [self.imageNameString isEqualToString:@"ic_like_fill_1_new"]) {
+  1215→  1215→        _pxLikeConfirmBypass = YES;
+  1216→  1216→        showConfirmation(^(void) {
+  1217→  1217→            [self _onTouchUpInside];
+  1218→  1218→            _pxLikeConfirmBypass = NO;
+  1219→  1219→        });
+  1220→  1220→    } else {
+  1221→  1221→        %orig;
+  1222→  1222→    }
+  1223→  1223→}
+  1224→  1224→%end
+  1225→  1225→static BOOL _pxLikeCommentBypass = NO;
+  1226→  1226→static BOOL _pxDislikeCommentBypass = NO;
+  1227→  1227→
+  1228→  1228→%hook AWECommentPanelCell // like/dislike comment confirmation
+  1229→  1229→- (void)onLikeAction:(id)arg1 {
+  1230→  1230→    if (!_pxLikeCommentBypass && [BHIManager likeCommentConfirmation]) {
+  1231→  1231→        _pxLikeCommentBypass = YES;
+  1232→  1232→        showConfirmation(^(void) {
+  1233→  1233→            [self onLikeAction:arg1];
+  1234→  1234→            _pxLikeCommentBypass = NO;
+  1235→  1235→        });
+  1236→  1236→    } else {
+  1237→  1237→        %orig;
+  1238→  1238→    }
+  1239→  1239→}
+  1240→  1240→- (void)onDislikeAction:(id)arg1 {
+  1241→  1241→    if (!_pxDislikeCommentBypass && [BHIManager dislikeCommentConfirmation]) {
+  1242→  1242→        _pxDislikeCommentBypass = YES;
+  1243→  1243→        showConfirmation(^(void) {
+  1244→  1244→            [self onDislikeAction:arg1];
+  1245→  1245→            _pxDislikeCommentBypass = NO;
+  1246→  1246→        });
+  1247→  1247→    } else {
+  1248→  1248→        %orig;
+  1249→  1249→    }
+  1250→  1250→}
+  1251→  1251→- (void)layoutSubviews {
+  1252→  1252→    %orig;
+  1253→  1253→    if (([BHIManager copyCommentWithoutUsername] || [BHIManager translateComment]) && !self.pxHasCommentGesture) {
+  1254→  1254→        self.pxHasCommentGesture = YES;
+  1255→  1255→        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(pxHandleCommentLongPress:)];
+  1256→  1256→        longPress.minimumPressDuration = 0.4;
+  1257→  1257→        [self addGestureRecognizer:longPress];
+  1258→  1258→    }
+  1259→  1259→}
+  1260→  1260→%new - (void)pxHandleCommentLongPress:(UILongPressGestureRecognizer *)sender {
+  1261→  1261→    if (sender.state != UIGestureRecognizerStateBegan) return;
+  1262→  1262→
+  1263→  1263→    // NOTE: "commentModel"/"text" are placeholders — confirm the real key path via
+  1264→  1264→    // Real property names confirmed via class-dump of MusicallyCore binary v46.0.0:
+  1265→  1265→    // commentText = plain text body; commentContent = richer variant (same content, different type).
+  1266→  1266→    id commentModel = [self valueForKey:@"commentModel"];
+  1267→  1267→    NSString *commentText = [commentModel valueForKey:@"commentText"];
+  1268→  1268→    if (commentText.length == 0) {
+  1269→  1269→        commentText = [commentModel valueForKey:@"commentContent"];
+  1270→  1270→    }
+  1271→  1271→    if (commentText.length == 0) return;
+  1272→  1272→
+  1273→  1273→    TUXActionSheetController *alert = [[%c(TUXActionSheetController) alloc] initWithTitle:@""];
+  1274→  1274→    if ([BHIManager copyCommentWithoutUsername]) {
+  1275→  1275→        [alert addAction:[[%c(TUXActionSheetAction) alloc] initWithStyle:0 title:@"Copy comment text" subtitle:nil image:[UIImage systemImageNamed:@"clipboard"] imageLabel:nil handler:^(TUXActionSheetAction * _Nonnull action) {
+  1276→  1276→            UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1277→  1277→            pasteboard.string = commentText;
+  1278→  1278→            PXScheduleClipboardClear();
+  1279→  1279→        }]];
+  1280→  1280→    }
+  1281→  1281→    if ([BHIManager translateComment]) {
+  1282→  1282→        [alert addAction:[[%c(TUXActionSheetAction) alloc] initWithStyle:0 title:@"Translate comment" subtitle:nil image:[UIImage systemImageNamed:@"globe"] imageLabel:nil handler:^(TUXActionSheetAction * _Nonnull action) {
+  1283→  1283→            PXTranslateText(commentText);
+  1284→  1284→        }]];
+  1285→  1285→    }
+  1286→  1286→    [alert setDismissOnDraggingDown:true];
+  1287→  1287→    [self.yy_viewController presentViewController:alert animated:YES completion:nil];
+  1288→  1288→}
+  1289→  1289→%property (nonatomic, assign) BOOL pxHasCommentGesture;
+  1290→  1290→%end
+  1291→  1291→
+  1292→  1292→%hook AWEUserModel // follower, following Count fake  
+  1293→  1293→- (NSNumber *)followerCount {
+  1294→  1294→    if ([BHIManager fakeChangesEnabled]) {
+  1295→  1295→        NSString *fakeCountString = [[NSUserDefaults standardUserDefaults] stringForKey:@"follower_count"];
+  1296→  1296→        if (!(fakeCountString.length == 0)) {
+  1297→  1297→            NSInteger fakeCount = [fakeCountString integerValue];
+  1298→  1298→            return [NSNumber numberWithInt:fakeCount];
+  1299→  1299→        }
+  1300→  1300→
+  1301→  1301→        return %orig;
+  1302→  1302→    }
+  1303→  1303→
+  1304→  1304→    return %orig;
+  1305→  1305→}
+  1306→  1306→- (NSNumber *)followingCount {
+  1307→  1307→    if ([BHIManager fakeChangesEnabled]) {
+  1308→  1308→        NSString *fakeCountString = [[NSUserDefaults standardUserDefaults] stringForKey:@"following_count"];
+  1309→  1309→        if (!(fakeCountString.length == 0)) {
+  1310→  1310→            NSInteger fakeCount = [fakeCountString integerValue];
+  1311→  1311→            return [NSNumber numberWithInt:fakeCount];
+  1312→  1312→        }
+  1313→  1313→
+  1314→  1314→        return %orig;
+  1315→  1315→    }
+  1316→  1316→
+  1317→  1317→    return %orig;
+  1318→  1318→}
+  1319→  1319→%end
+  1320→  1320→
+  1321→  1321→%hook AWETextInputController
+  1322→  1322→- (NSUInteger)maxLength {
+  1323→  1323→    if ([BHIManager extendedComment]) {
+  1324→  1324→        return 500;
+  1325→  1325→    }
+  1326→  1326→
+  1327→  1327→    return %orig;
+  1328→  1328→}
+  1329→  1329→%end
+  1330→  1330→%hook AWEPlayVideoPlayerController
+  1331→  1331→- (void)containerDidFullyDisplayWithReason:(NSInteger)arg1 {
+  1332→  1332→    if ([[[self container] parentViewController] isKindOfClass:%c(AWENewFeedTableViewController)] && [BHIManager skipRecommendations]) {
+  1333→  1333→        AWENewFeedTableViewController *rootVC = [[self container] parentViewController];
+  1334→  1334→        AWEAwemeModel *currentModel = [rootVC currentAweme];
+  1335→  1335→        if ([currentModel isUserRecommendBigCard]) {
+  1336→  1336→            [rootVC scrollToNextVideo];
+  1337→  1337→        }
+  1338→  1338→    }else {
+  1339→  1339→        %orig;
+  1340→  1340→    }
+  1341→  1341→
+  1342→  1342→    // Usage stats: count this as a watched video (once per fully-displayed container).
+  1343→  1343→    NSInteger totalVideos = [[NSUserDefaults standardUserDefaults] integerForKey:@"px_total_videos"];
+  1344→  1344→    [[NSUserDefaults standardUserDefaults] setInteger:totalVideos + 1 forKey:@"px_total_videos"];
+  1345→  1345→
+  1346→  1346→    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+  1347→  1347→    formatter.dateFormat = @"yyyy-MM-dd";
+  1348→  1348→    NSString *todayKey = [formatter stringFromDate:[NSDate date]];
+  1349→  1349→    NSString *storedDay = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_stats_day"];
+  1350→  1350→    NSInteger todayVideos = [[NSUserDefaults standardUserDefaults] integerForKey:@"px_today_videos"];
+  1351→  1351→    if (![storedDay isEqualToString:todayKey]) {
+  1352→  1352→        todayVideos = 0;
+  1353→  1353→        [[NSUserDefaults standardUserDefaults] setDouble:0 forKey:@"px_today_seconds"];
+  1354→  1354→        [[NSUserDefaults standardUserDefaults] setValue:todayKey forKey:@"px_stats_day"];
+  1355→  1355→    }
+  1356→  1356→    [[NSUserDefaults standardUserDefaults] setInteger:todayVideos + 1 forKey:@"px_today_videos"];
+  1357→  1357→}
+  1358→  1358→%end
+  1359→  1359→%hook AWEProfileEditTextViewController
+  1360→  1360→- (NSInteger)maxTextLength {
+  1361→  1361→    if ([BHIManager extendedBio]) {
+  1362→  1362→        return 222;
+  1363→  1363→    }
+  1364→  1364→
+  1365→  1365→    return %orig;
+  1366→  1366→}
+  1367→  1367→%end
+  1368→  1368→%hook AWEPlayInteractionAuthorView
+  1369→  1369→%new - (NSString *)emojiForCountryCode:(NSString *)countryCode {
+  1370→  1370→    // Convert the country code to uppercase
+  1371→  1371→    NSString *uppercaseCountryCode = [countryCode uppercaseString];
+  1372→  1372→    
+  1373→  1373→    // Ensure the country code has exactly two characters
+  1374→  1374→    if (uppercaseCountryCode.length != 2) {
+  1375→  1375→        return nil;
+  1376→  1376→    }
+  1377→  1377→    
+  1378→  1378→    // Convert the country code to the regional indicator symbols
+  1379→  1379→    uint32_t firstLetter = [uppercaseCountryCode characterAtIndex:0] + 0x1F1E6 - 'A';
+  1380→  1380→    uint32_t secondLetter = [uppercaseCountryCode characterAtIndex:1] + 0x1F1E6 - 'A';
+  1381→  1381→    
+  1382→  1382→    // Create the emoji using the regional indicator symbols
+  1383→  1383→    NSString *flagEmoji = [[NSString alloc] initWithBytes:&firstLetter length:4 encoding:NSUTF32LittleEndianStringEncoding];
+  1384→  1384→    flagEmoji = [flagEmoji stringByAppendingString:[[NSString alloc] initWithBytes:&secondLetter length:4 encoding:NSUTF32LittleEndianStringEncoding]];
+  1385→  1385→    
+  1386→  1386→    return flagEmoji;
+  1387→  1387→}
+  1388→  1388→
+  1389→  1389→- (void)layoutSubviews {
+  1390→  1390→    %orig;
+  1391→  1391→    if ([BHIManager uploadRegion]){
+  1392→  1392→        for (int i = 0; i < [[self subviews] count]; i ++){
+  1393→  1393→            id j = [[self subviews] objectAtIndex:i];
+  1394→  1394→            if ([j isKindOfClass:%c(UIStackView)]){
+  1395→  1395→                CGRect frame = [j frame];
+  1396→  1396→                frame.origin.x = 39.5; 
+  1397→  1397→                [j setFrame:frame];
+  1398→  1398→            }else {
+  1399→  1399→                [[self viewWithTag:666] removeFromSuperview];
+  1400→  1400→            }
+  1401→  1401→        }
+  1402→  1402→        [[self viewWithTag:666] removeFromSuperview];
+  1403→  1403→        AWEFeedCellViewController* rootVC = self.yy_viewController;
+  1404→  1404→        AWEAwemeModel *model = rootVC.model;
+  1405→  1405→        NSString *countryID = model.region;
+  1406→  1406→        UILabel *uploadLabel = [[UILabel alloc]initWithFrame:CGRectMake(0,2,39.5,20.5)];
+  1407→  1407→        NSString *countryEmoji = [self emojiForCountryCode:countryID];
+  1408→  1408→        uploadLabel.text = [NSString stringWithFormat:@"%@ •",countryEmoji];
+  1409→  1409→        uploadLabel.tag = 666;
+  1410→  1410→        [uploadLabel setTextColor: [UIColor whiteColor]];
+  1411→  1411→        [uploadLabel sizeToFit];
+  1412→  1412→        [self addSubview:uploadLabel];
+  1413→  1413→    }
+  1414→  1414→}
+  1415→  1415→%end
+  1416→  1416→%hook TIKTOKProfileHeaderView // copy profile information
+  1417→  1417→- (id)initWithFrame:(CGRect)arg1 {
+  1418→  1418→    self = %orig;
+  1419→  1419→    if ([BHIManager profileCopy]) {
+  1420→  1420→        [self addHandleLongPress];
+  1421→  1421→    }
+  1422→  1422→    return self;
+  1423→  1423→}
+  1424→  1424→%end
+  1425→  1425→
+  1426→  1426→%hook AWELiveFeedEntranceView
+  1427→  1427→- (void)switchStateWithTapped:(BOOL)arg1 {
+  1428→  1428→    if (![BHIManager liveActionEnabled] || [BHIManager selectedLiveAction] == 0) {
+  1429→  1429→        %orig;
+  1430→  1430→    } else if ([BHIManager liveActionEnabled] && [[BHIManager selectedLiveAction] intValue] == 1) {
+  1431→  1431→        PXMenuTabBarController *menu = [[PXMenuTabBarController alloc] init];
+  1432→  1432→        menu.modalPresentationStyle = UIModalPresentationFormSheet;
+  1433→  1433→        [topMostController() presentViewController:menu animated:YES completion:nil];
+  1434→  1434→    } 
+  1435→  1435→    else {
+  1436→  1436→        %orig;
+  1437→  1437→    }
+  1438→  1438→
+  1439→  1439→}
+  1440→  1440→- (void)layoutSubviews {
+  1441→  1441→    %orig;
+  1442→  1442→    if ([BHIManager hideLiveBadge]) {
+  1443→  1443→        self.hidden = YES;
+  1444→  1444→    }
+  1445→  1445→}
+  1446→  1446→%end
+  1447→  1447→
+  1448→  1448→
+  1449→  1449→%hook AWEFeedViewTemplateCell
+  1450→  1450→%property (nonatomic, strong) JGProgressHUD *hud;
+  1451→  1451→%property(nonatomic, assign) BOOL elementsHidden;
+  1452→  1452→%property (nonatomic, retain) NSString *fileextension;
+  1453→  1453→%property (nonatomic, retain) UIProgressView *progressView;
+  1454→  1454→- (void)configWithModel:(id)model {
+  1455→  1455→    %orig;
+  1456→  1456→    self.elementsHidden = false;
+  1457→  1457→    if ([BHIManager downloadButton]){
+  1458→  1458→        [self addDownloadButton];
+  1459→  1459→    }
+  1460→  1460→    if ([BHIManager hideElementButton]) {
+  1461→  1461→        [self addHideElementButton];
+  1462→  1462→    }
+  1463→  1463→}
+  1464→  1464→- (void)configureWithModel:(id)model {
+  1465→  1465→    %orig;
+  1466→  1466→    self.elementsHidden = false;
+  1467→  1467→    if ([BHIManager downloadButton]){
+  1468→  1468→        [self addDownloadButton];
+  1469→  1469→    }
+  1470→  1470→    if ([BHIManager hideElementButton]) {
+  1471→  1471→        [self addHideElementButton];
+  1472→  1472→    }
+  1473→  1473→}
+  1474→  1474→%new - (void)addDownloadButton {
+  1475→  1475→    UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  1476→  1476→    [downloadButton setTag:998];
+  1477→  1477→    [downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
+  1478→  1478→    [downloadButton addTarget:self action:@selector(downloadButtonHandler:) forControlEvents:UIControlEventTouchUpInside];
+  1479→  1479→    [downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
+  1480→  1480→    if (![self viewWithTag:998]) {
+  1481→  1481→        [downloadButton setTintColor:[UIColor whiteColor]];
+  1482→  1482→        [self addSubview:downloadButton];
+  1483→  1483→
+  1484→  1484→        [NSLayoutConstraint activateConstraints:@[
+  1485→  1485→            [downloadButton.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:90],
+  1486→  1486→            [downloadButton.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-10],
+  1487→  1487→            [downloadButton.widthAnchor constraintEqualToConstant:30],
+  1488→  1488→            [downloadButton.heightAnchor constraintEqualToConstant:30],
+  1489→  1489→        ]];
+  1490→  1490→    }
+  1491→  1491→}
+  1492→  1492→%new - (void)downloadHDVideo:(AWEAwemeBaseViewController *)rootVC {
+  1493→  1493→    NSString *as = rootVC.model.itemID;
+  1494→  1494→    NSURL *downloadableURL = [NSURL URLWithString:[NSString stringWithFormat:@"https://tikwm.com/video/media/hdplay/%@.mp4", as]];
+  1495→  1495→    self.fileextension = [rootVC.model.video.playURL bestURLtoDownloadFormat];
+  1496→  1496→    if (downloadableURL) {
+  1497→  1497→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1498→  1498→        [dwManager downloadFileWithURL:downloadableURL];
+  1499→  1499→        [dwManager setDelegate:self];
+  1500→  1500→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1501→  1501→        self.hud.textLabel.text = @"Downloading";
+  1502→  1502→        [self.hud showInView:topMostController().view];
+  1503→  1503→    }
+  1504→  1504→}
+  1505→  1505→%new - (void)downloadVideo:(AWEAwemeBaseViewController *)rootVC {
+  1506→  1506→    NSString *as = rootVC.model.itemID;
+  1507→  1507→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1508→  1508→    self.fileextension = [rootVC.model.video.playURL bestURLtoDownloadFormat];
+  1509→  1509→    if (downloadableURL) {
+  1510→  1510→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1511→  1511→        [dwManager downloadFileWithURL:downloadableURL];
+  1512→  1512→        [dwManager setDelegate:self];
+  1513→  1513→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1514→  1514→        self.hud.textLabel.text = @"Downloading";
+  1515→  1515→        [self.hud showInView:topMostController().view];
+  1516→  1516→    }
+  1517→  1517→}
+  1518→  1518→%new - (void)downloadPhotos:(TTKPhotoAlbumDetailCellController *)rootVC photoIndex:(unsigned long)index {
+  1519→  1519→    AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1520→  1520→            NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1521→  1521→            AWEPhotoAlbumPhoto *currentPhoto = [photos objectAtIndex:index];
+  1522→  1522→
+  1523→  1523→                NSURL *downloadableURL = [currentPhoto.originPhotoURL bestURLtoDownload];
+  1524→  1524→                self.fileextension = [currentPhoto.originPhotoURL bestURLtoDownloadFormat];
+  1525→  1525→                if (downloadableURL) {
+  1526→  1526→                    BHDownload *dwManager = [[BHDownload alloc] init];
+  1527→  1527→                    [dwManager downloadFileWithURL:downloadableURL];
+  1528→  1528→                    [dwManager setDelegate:self];
+  1529→  1529→                    self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1530→  1530→                    self.hud.textLabel.text = @"Downloading";
+  1531→  1531→                     [self.hud showInView:topMostController().view];
+  1532→  1532→                }
+  1533→  1533→            
+  1534→  1534→    }
+  1535→  1535→
+  1536→  1536→%new - (void)downloadPhotos:(TTKPhotoAlbumDetailCellController *)rootVC {
+  1537→  1537→    NSString *video_description = rootVC.model.music_songName;
+  1538→  1538→    AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1539→  1539→
+  1540→  1540→            NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1541→  1541→            NSMutableArray<NSURL *> *fileURLs = [NSMutableArray array];
+  1542→  1542→
+  1543→  1543→            for (AWEPhotoAlbumPhoto *currentPhoto in photos) {
+  1544→  1544→                NSURL *downloadableURL = [currentPhoto.originPhotoURL bestURLtoDownload];
+  1545→  1545→                self.fileextension = [currentPhoto.originPhotoURL bestURLtoDownloadFormat];
+  1546→  1546→                if (downloadableURL) {
+  1547→  1547→                    [fileURLs addObject:downloadableURL];
+  1548→  1548→                }
+  1549→  1549→            }
+  1550→  1550→
+  1551→  1551→            BHMultipleDownload *dwManager = [[BHMultipleDownload alloc] init];
+  1552→  1552→            [dwManager setDelegate:self];
+  1553→  1553→            [dwManager downloadFiles:fileURLs];
+  1554→  1554→            self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1555→  1555→            self.hud.textLabel.text = @"Downloading";
+  1556→  1556→            [self.hud showInView:topMostController().view];
+  1557→  1557→
+  1558→  1558→}
+  1559→  1559→%new - (void)downloadMusic:(AWEAwemeBaseViewController *)rootVC {
+  1560→  1560→    NSString *as = rootVC.model.itemID;
+  1561→  1561→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1562→  1562→    self.fileextension = @"mp3";
+  1563→  1563→    if (downloadableURL) {
+  1564→  1564→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1565→  1565→        [dwManager downloadFileWithURL:downloadableURL];
+  1566→  1566→        [dwManager setDelegate:self];
+  1567→  1567→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1568→  1568→        self.hud.textLabel.text = @"Downloading";
+  1569→  1569→        [self.hud showInView:topMostController().view];
+  1570→  1570→    }
+  1571→  1571→}
+  1572→  1572→%new - (void)copyMusic:(AWEAwemeBaseViewController *)rootVC {
+  1573→  1573→    NSURL *downloadableURL = [((AWEMusicModel *)rootVC.model.music).playURL bestURLtoDownload];
+  1574→  1574→    if (downloadableURL) {
+  1575→  1575→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1576→  1576→        pasteboard.string = [downloadableURL absoluteString];
+  1577→  1577→    } else {
+  1578→  1578→        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"Не удалось скопировать музыку" : @"Could Not Copy Music.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1579→  1579→    }
+  1580→  1580→}
+  1581→  1581→%new - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC {
+  1582→  1582→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1583→  1583→    if (downloadableURL) {
+  1584→  1584→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1585→  1585→        pasteboard.string = [downloadableURL absoluteString];
+  1586→  1586→    } else {
+  1587→  1587→        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1588→  1588→    }
+  1589→  1589→}
+  1590→  1590→%new - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC {
+  1591→  1591→    NSString *video_description = rootVC.model.music_songName;
+  1592→  1592→    if (video_description) {
+  1593→  1593→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1594→  1594→        pasteboard.string = video_description;
+  1595→  1595→        PXScheduleClipboardClear();
+  1596→  1596→    } else {
+  1597→  1597→        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1598→  1598→    }
+  1599→  1599→}
+  1600→  1600→%new - (void)translateDecription:(AWEAwemeBaseViewController *)rootVC {
+  1601→  1601→    NSString *video_description = rootVC.model.music_songName;
+  1602→  1602→    PXTranslateText(video_description);
+  1603→  1603→}
+  1604→  1604→%new - (void) downloadButtonHandler:(UIButton *)sender {
+  1605→  1605→    AWEAwemeBaseViewController *rootVC = self.viewController;
+  1606→  1606→    if ([rootVC isKindOfClass:%c(AWEFeedCellViewController)]) {
+  1607→  1607→
+  1608→  1608→         UIAction *action1 = [UIAction actionWithTitle:@"Download Video"
+  1609→  1609→                                            image:[UIImage systemImageNamed:@"film"]
+  1610→  1610→                                       identifier:nil
+  1611→  1611→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1612→  1612→                                            [self downloadVideo:rootVC];
+  1613→  1613→    }];
+  1614→  1614→        UIAction *action0 = [UIAction actionWithTitle:@"Download HD Video"
+  1615→  1615→                                            image:[UIImage systemImageNamed:@"film"]
+  1616→  1616→                                       identifier:nil
+  1617→  1617→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1618→  1618→                                            [self downloadHDVideo:rootVC];
+  1619→  1619→    }];
+  1620→  1620→    UIAction *action2 = [UIAction actionWithTitle:@"Download Music"
+  1621→  1621→                                            image:[UIImage systemImageNamed:@"music.note"]
+  1622→  1622→                                       identifier:nil
+  1623→  1623→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1624→  1624→                                            [self downloadMusic:rootVC];
+  1625→  1625→    }];
+  1626→  1626→    UIAction *action3 = [UIAction actionWithTitle:@"Copy Music link"
+  1627→  1627→                                            image:[UIImage systemImageNamed:@"link"]
+  1628→  1628→                                       identifier:nil
+  1629→  1629→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1630→  1630→                                            [self copyMusic:rootVC];
+  1631→  1631→    }];
+  1632→  1632→    UIAction *action4 = [UIAction actionWithTitle:@"Copy Video link"
+  1633→  1633→                                            image:[UIImage systemImageNamed:@"link"]
+  1634→  1634→                                       identifier:nil
+  1635→  1635→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1636→  1636→                                            [self copyVideo:rootVC];
+  1637→  1637→    }];
+  1638→  1638→    UIAction *action5 = [UIAction actionWithTitle:@"Copy Decription"
+  1639→  1639→                                            image:[UIImage systemImageNamed:@"note.text"]
+  1640→  1640→                                       identifier:nil
+  1641→  1641→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1642→  1642→                                            [self copyDecription:rootVC];
+  1643→  1643→    }];
+  1644→  1644→    UIAction *action6 = [UIAction actionWithTitle:@"Translate Description"
+  1645→  1645→                                            image:[UIImage systemImageNamed:@"globe"]
+  1646→  1646→                                       identifier:nil
+  1647→  1647→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1648→  1648→                                            [self translateDecription:rootVC];
+  1649→  1649→    }];
+  1650→  1650→    UIMenu *downloadMenu = [UIMenu menuWithTitle:@"Downloads Menu"
+  1651→  1651→                                        children:@[action1, action0,action2]];
+  1652→  1652→    UIMenu *copyMenu = [UIMenu menuWithTitle:@"Copy Menu"
+  1653→  1653→                                        children:[BHIManager translateDescription] ? @[action3, action4, action5, action6] : @[action3, action4, action5]];
+  1654→  1654→    UIMenu *mainMenu = [UIMenu menuWithTitle:@"" children:@[downloadMenu, copyMenu]];
+  1655→  1655→    [sender setMenu:mainMenu];
+  1656→  1656→    sender.showsMenuAsPrimaryAction = YES;
+  1657→  1657→    } else if ([self.viewController isKindOfClass:%c(TTKPhotoAlbumDetailCellController)]) {
+  1658→  1658→        TTKPhotoAlbumDetailCellController *rootVC = self.viewController;
+  1659→  1659→        AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1660→  1660→        NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1661→  1661→        unsigned long photosCount = [photos count];
+  1662→  1662→        NSMutableArray <UIAction *> *photosActions = [NSMutableArray array];
+  1663→  1663→            for (int i = 0; i < photosCount; i++) {
+  1664→  1664→        NSString *title = [NSString stringWithFormat:@"Download Photo %d", i+1];
+  1665→  1665→        UIAction *action = [UIAction actionWithTitle:title
+  1666→  1666→                                               image:[UIImage systemImageNamed:@"photo.fill"]
+  1667→  1667→                                          identifier:nil
+  1668→  1668→                                             handler:^(__kindof UIAction * _Nonnull action) {
+  1669→  1669→                                                [self downloadPhotos:rootVC photoIndex:i];
+  1670→  1670→        }];
+  1671→  1671→        [photosActions addObject:action];
+  1672→  1672→
+  1673→  1673→    }
+  1674→  1674→    UIAction *allPhotosAction = [UIAction actionWithTitle:@"Download All Photos"
+  1675→  1675→                                            image:[UIImage systemImageNamed:@"photo.fill"]
+  1676→  1676→                                       identifier:nil
+  1677→  1677→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1678→  1678→                                            [self downloadPhotos:rootVC];
+  1679→  1679→    }];
+  1680→  1680→    [photosActions addObject:allPhotosAction];
+  1681→  1681→    UIAction *action2 = [UIAction actionWithTitle:@"Download Music"
+  1682→  1682→                                            image:[UIImage systemImageNamed:@"music.note"]
+  1683→  1683→                                       identifier:nil
+  1684→  1684→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1685→  1685→                                            [self downloadMusic:rootVC];
+  1686→  1686→    }];
+  1687→  1687→    UIAction *action3 = [UIAction actionWithTitle:@"Copy Music link"
+  1688→  1688→                                            image:[UIImage systemImageNamed:@"link"]
+  1689→  1689→                                       identifier:nil
+  1690→  1690→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1691→  1691→                                            [self copyMusic:rootVC];
+  1692→  1692→    }];
+  1693→  1693→    UIAction *action4 = [UIAction actionWithTitle:@"Copy Video link"
+  1694→  1694→                                            image:[UIImage systemImageNamed:@"link"]
+  1695→  1695→                                       identifier:nil
+  1696→  1696→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1697→  1697→                                            [self copyVideo:rootVC];
+  1698→  1698→    }];
+  1699→  1699→    UIAction *action5 = [UIAction actionWithTitle:@"Copy Decription"
+
+[showing lines 1200-1699 of 2002; use offset=1700 with limit to continue reading]

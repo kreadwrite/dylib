@@ -1,0 +1,2002 @@
+     1→#import "TikTokHeaders.h"
+     2→#import "Settings/PXAssets.h"
+     3→
+     4→NSArray *jailbreakPaths;
+     5→
+     6→static void showConfirmation(void (^okHandler)(void)) {
+     7→  [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"Are you sure?" image:nil actionButtonTitle:@"Yes" cancelButtonTitle:@"No" actionBlock:^{
+     8→    okHandler();
+     9→  } cancelBlock:nil];
+    10→}
+    11→
+    12→static void PXTranslateText(NSString *text) {
+    13→    if (text.length == 0) return;
+    14→    NSString *encoded = [text stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+    15→    // sl=auto detects the source language automatically; change tl=ru to your preferred target language
+    16→    NSString *urlString = [NSString stringWithFormat:@"https://translate.google.com/?sl=auto&tl=ru&text=%@&op=translate", encoded];
+    17→    NSURL *url = [NSURL URLWithString:urlString];
+    18→    if (url) {
+    19→        [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    20→    }
+    21→}
+    22→
+    23→// Ghost: schedules the clipboard to be wiped a short while after PXTok copies
+    24→// something into it, so a copied link/description/comment doesn't linger
+    25→// indefinitely in your clipboard (visible to any app that reads it, including
+    26→// the system clipboard-access popup on iOS 14+).
+    27→static void PXScheduleClipboardClear(void) {
+    28→    if (![BHIManager ghostClipboardClear]) return;
+    29→    NSString *snapshot = [UIPasteboard generalPasteboard].string;
+    30→    double delay = 30.0;
+    31→    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    32→        // Only clear if the clipboard still holds exactly what we put there —
+    33→        // don't stomp on something the user copied from elsewhere in the meantime.
+    34→        if ([[UIPasteboard generalPasteboard].string isEqualToString:snapshot]) {
+    35→            [UIPasteboard generalPasteboard].string = @"";
+    36→        }
+    37→    });
+    38→}
+    39→
+    40→// Precise badge hook using TTKBadgeImpl confirmed in MusicallyCore binary v46.0.0.
+    41→// This intercepts the central badge-count update method that drives all tab-bar red dots.
+    42→%hook TTKBadgeImpl
+    43→- (void)setBadgeCount:(NSInteger)count {
+    44→    if ([BHIManager hideNotificationBadges]) {
+    45→        %orig(0);
+    46→    } else {
+    47→        %orig(count);
+    48→    }
+    49→}
+    50→- (void)showBadge {
+    51→    if (![BHIManager hideNotificationBadges]) {
+    52→        %orig;
+    53→    }
+    54→}
+    55→%end
+    56→
+    57→%hook AWETabBarPlusButton
+    58→- (void)layoutSubviews {
+    59→    %orig;
+    60→    if ([BHIManager hidePlusButton]) {
+    61→        self.hidden = YES;
+    62→        self.alpha = 0;
+    63→    }
+    64→}
+    65→%end
+    66→
+    67→%hook UITextField
+    68→- (BOOL)becomeFirstResponder {
+    69→    if ([BHIManager oledKeyboard]) {
+    70→        self.keyboardAppearance = UIKeyboardAppearanceDark;
+    71→    }
+    72→    return %orig;
+    73→}
+    74→%end
+    75→
+    76→%hook UITextView
+    77→- (BOOL)becomeFirstResponder {
+    78→    if ([BHIManager oledKeyboard]) {
+    79→        self.keyboardAppearance = UIKeyboardAppearanceDark;
+    80→    }
+    81→    return %orig;
+    82→}
+    83→%end
+    84→
+    85→// Precise hook on the real emoji-bar class found via class-dump of MusicallyCore
+    86→// (TTKCommentEmoticonsBar, property emojiBarEnable confirmed in binary)
+    87→%hook TTKCommentEmoticonsBar
+    88→- (void)setEmojiBarEnable:(BOOL)enable {
+    89→    if ([BHIManager hideEmojiPanel]) {
+    90→        %orig(NO);
+    91→    } else {
+    92→        %orig(enable);
+    93→    }
+    94→}
+    95→%end
+    96→
+    97→// Precise DM read-receipt hook using TIMConversationReadManagerImpl found in binary
+    98→// This is the class that actually dispatches markConversationAsRead to the server.
+    99→%hook TIMConversationReadManagerImpl
+   100→- (void)markConversationAsRead:(id)conversation completion:(id)completion {
+   101→    if ([BHIManager disableReadReceipt]) {
+   102→        // Swallow the call — read index is not sent to server, so the sender
+   103→        // never receives "seen" confirmation. All message content still arrives
+   104→        // locally; this only suppresses the outgoing read-status event.
+   105→        return;
+   106→    }
+   107→    %orig;
+   108→}
+   109→- (void)markConversationAsRead:(id)conversation {
+   110→    if ([BHIManager disableReadReceipt]) {
+   111→        return;
+   112→    }
+   113→    %orig;
+   114→}
+   115→%end
+   116→
+   117→%hook AppDelegate
+   118→- (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
+   119→    %orig;
+   120→    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"flex_enebaled"]) {
+   121→        [[%c(FLEXManager) performSelector:@selector(sharedManager)] performSelector:@selector(showExplorer)];
+   122→    }
+   123→    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"BHTikTokFirstRun"]) {
+   124→        [[NSUserDefaults standardUserDefaults] setValue:@"BHTikTokFirstRun" forKey:@"BHTikTokFirstRun"];
+   125→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"hide_ads"];
+   126→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"download_button"];
+   127→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"remove_elements_button"];
+   128→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"show_porgress_bar"];
+   129→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"save_profile"];
+   130→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"copy_profile_information"];
+   131→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"extended_bio"];
+   132→        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"extendedComment"];
+   133→    }
+   134→    [BHIManager cleanCache];
+   135→
+   136→    if ([BHIManager hidePlusButton] || [BHIManager hideNotificationBadges]) {
+   137→        // NOTE: best-effort generic approach — repeatedly scans the visible view
+   138→        // hierarchy for tab-bar buttons/badges by class-name and accessibility-label
+   139→        // pattern matching, since the exact tab bar classes aren't in TikTokHeaders.h
+   140→        // yet. Verify the real classes via class-dump for a more reliable %hook.
+   141→        // Throttled to 2.5s (was 1s) — still responsive after navigation without
+   142→        // unnecessarily burning CPU/battery on a constant 1Hz view-tree walk.
+   143→        [NSTimer scheduledTimerWithTimeInterval:2.5 repeats:YES block:^(NSTimer * _Nonnull timer) {
+   144→            UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
+   145→            [self pxScanForTabBarElementsIn:keyWindow];
+   146→        }];
+   147→    }
+   148→    return true;
+   149→}
+   150→%new - (void)pxScanForTabBarElementsIn:(UIView *)root {
+   151→    for (UIView *subview in root.subviews) {
+   152→        NSString *className = NSStringFromClass([subview class]).lowercaseString;
+   153→
+   154→        if ([BHIManager hidePlusButton] && [subview isKindOfClass:[UIButton class]] &&
+   155→            ([subview.accessibilityLabel.lowercaseString isEqualToString:@"create"] ||
+   156→             [subview.accessibilityLabel.lowercaseString containsString:@"plus"])) {
+   157→            subview.hidden = YES;
+   158→        }
+   159→
+   160→        if ([BHIManager hideNotificationBadges] &&
+   161→            ([className containsString:@"badge"] || [className containsString:@"reddot"] || [className containsString:@"dot"])) {
+   162→            subview.hidden = YES;
+   163→        }
+   164→        [self pxScanForTabBarElementsIn:subview];
+   165→    }
+   166→}
+   167→static BOOL isAuthenticationShowed = FALSE;
+   168→- (void)applicationDidBecomeActive:(id)arg1 { // old app lock TODO: add face-id
+   169→  %orig;
+   170→
+   171→  if ([BHIManager appLock] && !isAuthenticationShowed) {
+   172→    UIViewController *rootController = [[self window] rootViewController];
+   173→    SecurityViewController *securityViewController = [SecurityViewController new];
+   174→    securityViewController.modalPresentationStyle = UIModalPresentationOverFullScreen;
+   175→    [rootController presentViewController:securityViewController animated:YES completion:nil];
+   176→    isAuthenticationShowed = TRUE;
+   177→  }
+   178→
+   179→  // Usage stats: mark the start of a new active session.
+   180→  [[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"px_session_start"];
+   181→  NSInteger totalSessions = [[NSUserDefaults standardUserDefaults] integerForKey:@"px_total_sessions"];
+   182→  [[NSUserDefaults standardUserDefaults] setInteger:totalSessions + 1 forKey:@"px_total_sessions"];
+   183→}
+   184→
+   185→- (void)applicationWillEnterForeground:(id)arg1 {
+   186→  %orig;
+   187→  isAuthenticationShowed = FALSE;
+   188→
+   189→  if ([BHIManager ghostPrivacyScreen]) {
+   190→    UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
+   191→    UIView *blurView = [keyWindow viewWithTag:987654];
+   192→    if (blurView) {
+   193→        [UIView animateWithDuration:0.15 animations:^{
+   194→            blurView.alpha = 0;
+   195→        } completion:^(BOOL finished) {
+   196→            [blurView removeFromSuperview];
+   197→        }];
+   198→    }
+   199→  }
+   200→}
+   201→
+   202→- (void)applicationWillResignActive:(id)arg1 {
+   203→  %orig;
+   204→  // Usage stats: fold this session's duration into the running total.
+   205→  double start = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_session_start"];
+   206→  if (start > 0) {
+   207→      double elapsed = [[NSDate date] timeIntervalSince1970] - start;
+   208→      double totalSeconds = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_total_seconds"];
+   209→      [[NSUserDefaults standardUserDefaults] setDouble:totalSeconds + elapsed forKey:@"px_total_seconds"];
+   210→      [[NSUserDefaults standardUserDefaults] setDouble:0 forKey:@"px_session_start"];
+   211→
+   212→      // Also fold into "today"'s bucket, resetting if the day rolled over.
+   213→      NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+   214→      formatter.dateFormat = @"yyyy-MM-dd";
+   215→      NSString *todayKey = [formatter stringFromDate:[NSDate date]];
+   216→      NSString *storedDay = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_stats_day"];
+   217→      double todaySeconds = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_today_seconds"];
+   218→      if (![storedDay isEqualToString:todayKey]) {
+   219→          todaySeconds = 0;
+   220→          [[NSUserDefaults standardUserDefaults] setInteger:0 forKey:@"px_today_videos"];
+   221→          [[NSUserDefaults standardUserDefaults] setValue:todayKey forKey:@"px_stats_day"];
+   222→      }
+   223→      [[NSUserDefaults standardUserDefaults] setDouble:todaySeconds + elapsed forKey:@"px_today_seconds"];
+   224→  }
+   225→
+   226→  // Ghost: blur your own screen content before the app switcher snapshot is taken,
+   227→  // so nobody nearby can see your feed/DMs in the multitasking preview.
+   228→  if ([BHIManager ghostPrivacyScreen]) {
+   229→    UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
+   230→    UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+   231→    UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
+   232→    blurView.tag = 987654;
+   233→    blurView.frame = keyWindow.bounds;
+   234→    blurView.alpha = 0;
+   235→    [keyWindow addSubview:blurView];
+   236→    [UIView animateWithDuration:0.15 animations:^{
+   237→        blurView.alpha = 1;
+   238→    }];
+   239→  }
+   240→}
+   241→%end
+   242→
+   243→%hook NSUserActivity
+   244→- (void)setEligibleForSearch:(BOOL)eligibleForSearch {
+   245→    if ([BHIManager ghostHideFromSpotlight]) {
+   246→        %orig(NO); // never let TikTok content get indexed into device-wide Spotlight search
+   247→    } else {
+   248→        %orig;
+   249→    }
+   250→}
+   251→%end
+   252→
+   253→%hook UINavigationBar
+   254→- (void)didMoveToWindow {
+   255→    %orig;
+   256→    if ([BHIManager transparentNavBar]) {
+   257→        [self setBackgroundImage:[UIImage new] forBarMetrics:UIBarMetricsDefault];
+   258→        self.shadowImage = [UIImage new];
+   259→        self.translucent = YES;
+   260→        self.backgroundColor = [UIColor clearColor];
+   261→    }
+   262→}
+   263→%end
+   264→
+   265→%hook UIImpactFeedbackGenerator
+   266→- (instancetype)initWithStyle:(UIImpactFeedbackStyle)style {
+   267→    NSString *strength = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_haptic_strength"];
+   268→    if ([BHIManager hapticsAdjustEnabled] && strength.length > 0) {
+   269→        if ([strength isEqualToString:@"off"]) {
+   270→            // We can't truly "remove" impacts once the generator exists without
+   271→            // also hooking impactOccurred; off is enforced there too, see below.
+   272→        } else if ([strength isEqualToString:@"light"]) {
+   273→            style = UIImpactFeedbackStyleLight;
+   274→        } else if ([strength isEqualToString:@"medium"]) {
+   275→            style = UIImpactFeedbackStyleMedium;
+   276→        } else if ([strength isEqualToString:@"strong"]) {
+   277→            style = UIImpactFeedbackStyleHeavy;
+   278→        }
+   279→    }
+   280→    return %orig(style);
+   281→}
+   282→- (void)impactOccurred {
+   283→    NSString *strength = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_haptic_strength"];
+   284→    if ([BHIManager hapticsAdjustEnabled] && [strength isEqualToString:@"off"]) {
+   285→        return; // swallow the haptic entirely
+   286→    }
+   287→    %orig;
+   288→}
+   289→%end
+   290→
+   291→%hook TTKMediaSpeedControlService
+   292→- (void)setPlaybackRate:(CGFloat)arg1 {
+   293→    NSNumber *speed = [BHIManager selectedSpeed];
+   294→    if (![BHIManager speedEnabled] || [speed isEqualToNumber:@1]) {
+   295→        return %orig;
+   296→    }
+   297→    if ([BHIManager speedEnabled]) {
+   298→        if ([BHIManager selectedSpeed]) {
+   299→            return %orig([speed floatValue]);
+   300→        }
+   301→    } else {
+   302→        return %orig;
+   303→    }
+   304→}
+   305→%end
+   306→
+   307→%hook AWEUserWorkCollectionViewCell
+   308→- (void)configWithModel:(id)arg1 isMine:(BOOL)arg2 { // Video like count & upload date lables
+   309→    %orig;
+   310→    if ([BHIManager videoLikeCount] || [BHIManager videoUploadDate]) {
+   311→        for (int i = 0; i < [[self.contentView subviews] count]; i ++) {
+   312→            UIView *j = [[self.contentView subviews] objectAtIndex:i];
+   313→            if (j.tag == 1001) {
+   314→                [j removeFromSuperview];
+   315→            } 
+   316→            else if (j.tag == 1002) {
+   317→                [j removeFromSuperview];
+   318→            }
+   319→        }
+   320→
+   321→        AWEAwemeModel *model = [self model];
+   322→        AWEAwemeStatisticsModel *statistics = [model statistics];
+   323→        NSNumber *createTime = [model createTime];
+   324→        NSNumber *likeCount = [statistics diggCount];
+   325→        NSString *likeCountFormatted = [self formattedNumber:[likeCount integerValue]];
+   326→        NSString *formattedDate = [self formattedDateStringFromTimestamp:[createTime doubleValue]];
+   327→
+   328→        UILabel *likeCountLabel = [UILabel new];
+   329→        likeCountLabel.text = likeCountFormatted;
+   330→        likeCountLabel.textColor = [UIColor whiteColor];
+   331→        likeCountLabel.font = [UIFont boldSystemFontOfSize:13.0];
+   332→        likeCountLabel.tag = 1001;
+   333→        [likeCountLabel setTranslatesAutoresizingMaskIntoConstraints:false];
+   334→        
+   335→        UIImageView *heartImage = [UIImageView new];
+   336→        heartImage.image = [UIImage systemImageNamed:@"heart"];
+   337→        heartImage.tintColor = [UIColor whiteColor];
+   338→        [heartImage setTranslatesAutoresizingMaskIntoConstraints:false];
+   339→
+   340→        UILabel *uploadDateLabel = [UILabel new];
+   341→        uploadDateLabel.text = formattedDate;
+   342→        uploadDateLabel.textColor = [UIColor whiteColor];
+   343→        uploadDateLabel.font = [UIFont boldSystemFontOfSize:13.0];
+   344→        uploadDateLabel.tag = 1002;
+   345→        [uploadDateLabel setTranslatesAutoresizingMaskIntoConstraints:false];
+   346→
+   347→        UIImageView *clockImage = [UIImageView new];
+   348→        clockImage.image = [UIImage systemImageNamed:@"clock"];
+   349→        clockImage.tintColor = [UIColor whiteColor];
+   350→        [clockImage setTranslatesAutoresizingMaskIntoConstraints:false];
+   351→        
+   352→
+   353→        for (int i = 0; i < [[self.contentView subviews] count]; i ++) {
+   354→            UIView *j = [[self.contentView subviews] objectAtIndex:i];
+   355→            if (j.tag == 1001) {
+   356→                [j removeFromSuperview];
+   357→            } 
+   358→            else if (j.tag == 1002) {
+   359→                [j removeFromSuperview];
+   360→            }
+   361→        }
+   362→        if ([BHIManager videoLikeCount]) {
+   363→        [self.contentView addSubview:heartImage];
+   364→        [NSLayoutConstraint activateConstraints:@[
+   365→                [heartImage.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:110],
+   366→                [heartImage.leadingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.leadingAnchor constant:4],
+   367→                [heartImage.widthAnchor constraintEqualToConstant:16],
+   368→                [heartImage.heightAnchor constraintEqualToConstant:16],
+   369→            ]];
+   370→        [self.contentView addSubview:likeCountLabel];
+   371→        [NSLayoutConstraint activateConstraints:@[
+   372→                [likeCountLabel.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:109],
+   373→                [likeCountLabel.leadingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.leadingAnchor constant:23],
+   374→                [likeCountLabel.widthAnchor constraintEqualToConstant:200],
+   375→                [likeCountLabel.heightAnchor constraintEqualToConstant:16],
+   376→            ]];
+   377→        }
+   378→        if ([BHIManager videoUploadDate]) {
+   379→        [self.contentView addSubview:clockImage];
+   380→        [NSLayoutConstraint activateConstraints:@[
+   381→                [clockImage.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:128],
+   382→                [clockImage.leadingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.leadingAnchor constant:4],
+   383→                [clockImage.widthAnchor constraintEqualToConstant:16],
+   384→                [clockImage.heightAnchor constraintEqualToConstant:16],
+   385→            ]];
+   386→        [self.contentView addSubview:uploadDateLabel];
+   387→        [NSLayoutConstraint activateConstraints:@[
+   388→                [uploadDateLabel.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:127],
+   389→                [uploadDateLabel.leadingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.leadingAnchor constant:23],
+   390→                [uploadDateLabel.widthAnchor constraintEqualToConstant:200],
+   391→                [uploadDateLabel.heightAnchor constraintEqualToConstant:16],
+   392→            ]];
+   393→        }
+   394→    }
+   395→}
+   396→%new - (NSString *)formattedNumber:(NSInteger)number {
+   397→
+   398→    if (number >= 1000000) {
+   399→        return [NSString stringWithFormat:@"%.1fm", number / 1000000.0];
+   400→    } else if (number >= 1000) {
+   401→        return [NSString stringWithFormat:@"%.1fk", number / 1000.0];
+   402→    } else {
+   403→        return [NSString stringWithFormat:@"%ld", (long)number];
+   404→    }
+   405→
+   406→}
+   407→%new - (NSString *)formattedDateStringFromTimestamp:(NSTimeInterval)timestamp {
+   408→
+   409→    NSDate *date = [NSDate dateWithTimeIntervalSince1970:timestamp];
+   410→    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+   411→    dateFormatter.dateFormat = @"dd.MM.yy"; 
+   412→    return [dateFormatter stringFromDate:date];
+   413→
+   414→}
+   415→%end
+   416→
+   417→%hook TTKProfileRootView
+   418→- (void)layoutSubviews { // Video count
+   419→    %orig;
+   420→    if ([BHIManager profileVideoCount]){
+   421→        TTKProfileOtherViewController *rootVC = [self yy_viewController];
+   422→        AWEUserModel *user = [rootVC user];
+   423→        NSNumber *userVideoCount = [user visibleVideosCount];
+   424→        if (userVideoCount){
+   425→            UILabel *userVideoCountLabel = [[UILabel alloc] initWithFrame:CGRectMake(0,2,100,20.5)];
+   426→            userVideoCountLabel.text = [NSString stringWithFormat:@"Video Count: %@", userVideoCount];
+   427→            userVideoCountLabel.font = [UIFont systemFontOfSize:9.0];
+   428→            [self addSubview:userVideoCountLabel];
+   429→        }
+   430→    }
+   431→}
+   432→%end
+   433→
+   434→%hook BDImageView
+   435→- (void)layoutSubviews { // Profile save
+   436→    %orig;
+   437→    if ([BHIManager profileSave]) {
+   438→        [self addHandleLongPress];
+   439→    }
+   440→}
+   441→%new - (void)addHandleLongPress {
+   442→    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+   443→    longPress.minimumPressDuration = 0.3;
+   444→    [self addGestureRecognizer:longPress];
+   445→}
+   446→%new - (void)handleLongPress:(UILongPressGestureRecognizer *)sender {
+   447→    if (sender.state == UIGestureRecognizerStateBegan) {
+   448→        [%c(AWEUIAlertView) showAlertWithTitle:@"Save profile image" description:@"Do you want to save this image" image:nil actionButtonTitle:@"Yes" cancelButtonTitle:@"No" actionBlock:^{
+   449→            UIImageWriteToSavedPhotosAlbum([self bd_baseImage], self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
+   450→  } cancelBlock:nil];
+   451→    }
+   452→}
+   453→%new - (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+   454→    if (error) {
+   455→        NSLog(@"Error saving image: %@", error.localizedDescription);
+   456→    } else {
+   457→        NSLog(@"Image successfully saved to Photos app");
+   458→    }
+   459→}
+   460→%end
+   461→
+   462→%hook AWEUserNameLabel // fake verification
+   463→- (void)layoutSubviews {
+   464→    %orig;
+   465→    if ([self.yy_viewController isKindOfClass:(%c(TTKProfileHomeViewController))] && [BHIManager fakeVerified]) {
+   466→        [self addVerifiedIcon:true];
+   467→    }
+   468→}
+   469→%end
+   470→
+   471→%hook TTTAttributedLabel // copy profile decription
+   472→- (void)layoutSubviews {
+   473→    %orig;
+   474→    if ([BHIManager profileCopy]){
+   475→        [self addHandleLongPress];
+   476→    }
+   477→}
+   478→%new - (void)addHandleLongPress {
+   479→    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+   480→    longPress.minimumPressDuration = 0.3;
+   481→    [self addGestureRecognizer:longPress];
+   482→}
+   483→%new - (void)handleLongPress:(UILongPressGestureRecognizer *)sender {
+   484→    if (sender.state == UIGestureRecognizerStateBegan) {
+   485→        NSString *profileDescription = [self text];
+   486→        [%c(AWEUIAlertView) showAlertWithTitle:@"Copy bio" description:@"Do you want to copy this text to clipboard" image:nil actionButtonTitle:@"Yes" cancelButtonTitle:@"No" actionBlock:^{
+   487→             if (profileDescription) {
+   488→                                                                    UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+   489→                                                                    pasteboard.string = profileDescription;
+   490→                                                                }
+   491→  } cancelBlock:nil];
+   492→    }
+   493→}
+   494→%end
+   495→
+   496→%hook TTKSettingsBaseCellPlugin
+   497→- (void)didSelectItemAtIndex:(NSInteger)index {
+   498→    if ([self.itemModel.identifier isEqualToString:@"pxtok_settings"]) {
+   499→        UINavigationController *PXTokSettings = [[UINavigationController alloc] initWithRootViewController:[[ViewController alloc] init]];
+   500→        [topMostController() presentViewController:PXTokSettings animated:true completion:nil];
+   501→    } else {
+   502→        return %orig;
+   503→    }
+   504→}
+   505→%end
+   506→
+   507→%hook AWESettingsNormalSectionViewModel
+   508→- (void)viewDidLoad {
+   509→    %orig;
+   510→    if ([self.sectionIdentifier isEqualToString:@"account"]) {
+   511→        TTKSettingsBaseCellPlugin *PXTokSettingsPluginCell = [[%c(TTKSettingsBaseCellPlugin) alloc] initWithPluginContext:self.context];
+   512→
+   513→        AWESettingItemModel *PXTokSettingsItemModel = [[%c(AWESettingItemModel) alloc] initWithIdentifier:@"pxtok_settings"];
+   514→        [PXTokSettingsItemModel setTitle:@"PXTok"];
+   515→        [PXTokSettingsItemModel setDetail:@"PXTok"];
+   516→        [PXTokSettingsItemModel setIconImage:[PXAssets pxIcon]];
+   517→        [PXTokSettingsItemModel setType:99];
+   518→
+   519→        [PXTokSettingsPluginCell setItemModel:PXTokSettingsItemModel];
+   520→
+   521→        [self insertModel:PXTokSettingsPluginCell atIndex:0 animated:true];
+   522→    }
+   523→}
+   524→%end
+   525→
+   526→%hook SparkViewController // alwaysOpenSafari
+   527→- (void)viewWillAppear:(BOOL)animated {
+   528→    if (![BHIManager alwaysOpenSafari]) {
+   529→        return %orig;
+   530→    }
+   531→    
+   532→    // NSURL *url = self.originURL;
+   533→    NSURLComponents *components = [NSURLComponents componentsWithURL:self.originURL resolvingAgainstBaseURL:NO];
+   534→    NSString *searchParameter = @"url";
+   535→    NSString *searchValue = nil;
+   536→    
+   537→    for (NSURLQueryItem *queryItem in components.queryItems) {
+   538→        if ([queryItem.name isEqualToString:searchParameter]) {
+   539→            searchValue = queryItem.value;
+   540→            break;
+   541→        }
+   542→    }
+   543→    
+   544→    // In-app browser is used for two-factor authentication with security key,
+   545→    // login will not complete successfully if it's redirected to Safari
+   546→    // if ([urlStr containsString:@"twitter.com/account/"] || [urlStr containsString:@"twitter.com/i/flow/"]) {
+   547→    //     return %orig;
+   548→    // }
+   549→
+   550→    if (searchValue) {
+   551→        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:searchValue] options:@{} completionHandler:nil];
+   552→        [self didTapCloseButton];
+   553→    } else {
+   554→        return %orig;
+   555→    }
+   556→}
+   557→%end
+   558→
+   559→%hook CTCarrier // changes country 
+   560→- (NSString *)mobileCountryCode {
+   561→    if ([BHIManager regionChangingEnabled]) {
+   562→        if ([BHIManager selectedRegion]) {
+   563→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   564→            return selectedRegion[@"mcc"];
+   565→        }
+   566→        return %orig;
+   567→    }
+   568→    return %orig;
+   569→}
+   570→
+   571→- (void)setIsoCountryCode:(NSString *)arg1 {
+   572→    if ([BHIManager regionChangingEnabled]) {
+   573→        if ([BHIManager selectedRegion]) {
+   574→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   575→            return %orig(selectedRegion[@"code"]);
+   576→        }
+   577→        return %orig(arg1);
+   578→    }
+   579→    return %orig(arg1);
+   580→}
+   581→
+   582→- (NSString *)isoCountryCode {
+   583→    if ([BHIManager regionChangingEnabled]) {
+   584→        if ([BHIManager selectedRegion]) {
+   585→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   586→            return selectedRegion[@"code"];
+   587→        }
+   588→        return %orig;
+   589→    }
+   590→    return %orig;
+   591→}
+   592→
+   593→- (NSString *)mobileNetworkCode {
+   594→    if ([BHIManager regionChangingEnabled]) {
+   595→        if ([BHIManager selectedRegion]) {
+   596→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   597→            return selectedRegion[@"mnc"];
+   598→        }
+   599→        return %orig;
+   600→    }
+   601→    return %orig;
+   602→}
+   603→%end
+   604→%hook TTKStoreRegionService
+   605→- (id)storeRegion {
+   606→    if ([BHIManager regionChangingEnabled]) {
+   607→        if ([BHIManager selectedRegion]) {
+   608→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   609→            return [selectedRegion[@"code"] lowercaseString];
+   610→        }
+   611→        return %orig;
+   612→    }
+   613→    return %orig;
+   614→}
+   615→- (id)getStoreRegion {
+   616→    if ([BHIManager regionChangingEnabled]) {
+   617→        if ([BHIManager selectedRegion]) {
+   618→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   619→            return [selectedRegion[@"code"] lowercaseString];
+   620→        }
+   621→        return %orig;
+   622→    }
+   623→    return %orig;
+   624→}
+   625→- (void)setStoreRegion:(id)arg1 {
+   626→    if ([BHIManager regionChangingEnabled]) {
+   627→        if ([BHIManager selectedRegion]) {
+   628→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   629→            return %orig([selectedRegion[@"code"] lowercaseString]);
+   630→        }
+   631→        return %orig(arg1);
+   632→    }
+   633→    return %orig(arg1);
+   634→}
+   635→%end
+   636→%hook TIKTOKRegionManager
+   637→+ (NSString *)systemRegion {
+   638→    if ([BHIManager regionChangingEnabled]) {
+   639→        if ([BHIManager selectedRegion]) {
+   640→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   641→            return selectedRegion[@"code"];
+   642→        }
+   643→        return %orig;
+   644→    }
+   645→    return %orig;
+   646→}
+   647→+ (id)region {
+   648→    if ([BHIManager regionChangingEnabled]) {
+   649→        if ([BHIManager selectedRegion]) {
+   650→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   651→            return selectedRegion[@"code"];
+   652→        }
+   653→        return %orig;
+   654→    }
+   655→    return %orig;
+   656→}
+   657→+ (id)mccmnc {
+   658→    if ([BHIManager regionChangingEnabled]) {
+   659→        if ([BHIManager selectedRegion]) {
+   660→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   661→            return [NSString stringWithFormat:@"%@%@", selectedRegion[@"mcc"], selectedRegion[@"mnc"]];
+   662→        }
+   663→        return %orig;
+   664→    }
+   665→    return %orig;
+   666→}
+   667→+ (id)storeRegion {
+   668→    if ([BHIManager regionChangingEnabled]) {
+   669→        if ([BHIManager selectedRegion]) {
+   670→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   671→            return selectedRegion[@"code"];
+   672→        }
+   673→        return %orig;
+   674→    }
+   675→    return %orig;
+   676→}
+   677→+ (id)currentRegionV2 {
+   678→    if ([BHIManager regionChangingEnabled]) {
+   679→        if ([BHIManager selectedRegion]) {
+   680→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   681→            return selectedRegion[@"code"];
+   682→        }
+   683→        return %orig;
+   684→    }
+   685→    return %orig;
+   686→}
+   687→+ (id)localRegion {
+   688→        if ([BHIManager regionChangingEnabled]) {
+   689→        if ([BHIManager selectedRegion]) {
+   690→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   691→            return selectedRegion[@"code"];
+   692→        }
+   693→        return %orig;
+   694→    }
+   695→    return %orig;
+   696→}
+   697→
+   698→%end
+   699→
+   700→%hook TTKPassportAppStoreRegionModel
+   701→- (id)storeRegion {
+   702→    if ([BHIManager regionChangingEnabled]) {
+   703→        if ([BHIManager selectedRegion]) {
+   704→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   705→            return [selectedRegion[@"code"] lowercaseString];
+   706→        }
+   707→        return %orig;
+   708→    }
+   709→    return %orig;
+   710→}
+   711→- (void)setStoreRegion:(id)arg1 {
+   712→    if ([BHIManager regionChangingEnabled]) {
+   713→        if ([BHIManager selectedRegion]) {
+   714→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   715→            return %orig([selectedRegion[@"code"] lowercaseString]);
+   716→        }
+   717→        return %orig(arg1);
+   718→    }
+   719→    return %orig(arg1);
+   720→}
+   721→- (void)setLocalizedCountryName:(id)arg1 {
+   722→    if ([BHIManager regionChangingEnabled]) {
+   723→        if ([BHIManager selectedRegion]) {
+   724→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   725→            return %orig(selectedRegion[@"name"]);
+   726→        }
+   727→        return %orig(arg1);
+   728→    }
+   729→    return %orig(arg1);
+   730→}
+   731→- (id)localizedCountryName {
+   732→    if ([BHIManager regionChangingEnabled]) {
+   733→        if ([BHIManager selectedRegion]) {
+   734→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   735→            return selectedRegion[@"name"];
+   736→        }
+   737→        return %orig;
+   738→    }
+   739→    return %orig;
+   740→}
+   741→%end
+   742→
+   743→%hook ATSRegionCacheManager
+   744→- (id)getRegion {
+   745→ if ([BHIManager regionChangingEnabled]) {
+   746→        if ([BHIManager selectedRegion]) {
+   747→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   748→            return [selectedRegion[@"code"] lowercaseString];
+   749→        }
+   750→        return %orig;
+   751→    }
+   752→    return %orig;
+   753→}
+   754→- (id)storeRegionFromCache {
+   755→ if ([BHIManager regionChangingEnabled]) {
+   756→        if ([BHIManager selectedRegion]) {
+   757→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   758→            return [selectedRegion[@"code"] lowercaseString];
+   759→        }
+   760→        return %orig;
+   761→    }
+   762→    return %orig;
+   763→}
+   764→- (id)storeRegionFromTTNetNotification:(id)arg1 {
+   765→ if ([BHIManager regionChangingEnabled]) {
+   766→        if ([BHIManager selectedRegion]) {
+   767→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   768→            return [selectedRegion[@"code"] lowercaseString];
+   769→        }
+   770→        return %orig;
+   771→    }
+   772→    return %orig;
+   773→}
+   774→- (void)setRegion:(id)arg1 {
+   775→    if ([BHIManager regionChangingEnabled]) {
+   776→        if ([BHIManager selectedRegion]) {
+   777→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   778→            return %orig([selectedRegion[@"code"] lowercaseString]);
+   779→        }
+   780→        return %orig(arg1);
+   781→    }
+   782→    return %orig(arg1);
+   783→}
+   784→- (id)region {
+   785→ if ([BHIManager regionChangingEnabled]) {
+   786→        if ([BHIManager selectedRegion]) {
+   787→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   788→            return [selectedRegion[@"code"] lowercaseString];
+   789→        }
+   790→        return %orig;
+   791→    }
+   792→    return %orig;
+   793→}
+   794→%end
+   795→
+   796→%hook TTKStoreRegionModel
+   797→- (id)storeRegion {
+   798→ if ([BHIManager regionChangingEnabled]) {
+   799→        if ([BHIManager selectedRegion]) {
+   800→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   801→            return selectedRegion[@"code"];
+   802→        }
+   803→        return %orig;
+   804→    }
+   805→    return %orig;
+   806→}
+   807→- (void)setStoreRegion:(id)arg1 {
+   808→    if ([BHIManager regionChangingEnabled]) {
+   809→        if ([BHIManager selectedRegion]) {
+   810→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   811→            return %orig(selectedRegion[@"code"]);
+   812→        }
+   813→        return %orig(arg1);
+   814→    }
+   815→    return %orig(arg1);
+   816→}
+   817→%end
+   818→
+   819→%hook TTInstallIDManager
+   820→- (id)currentAppRegion {
+   821→ if ([BHIManager regionChangingEnabled]) {
+   822→        if ([BHIManager selectedRegion]) {
+   823→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   824→            return selectedRegion[@"code"];
+   825→        }
+   826→        return %orig;
+   827→    }
+   828→    return %orig;
+   829→}
+   830→- (void)setCurrentAppRegion:(id)arg1 {
+   831→    if ([BHIManager regionChangingEnabled]) {
+   832→        if ([BHIManager selectedRegion]) {
+   833→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   834→            return %orig(selectedRegion[@"code"]);
+   835→        }
+   836→        return %orig(arg1);
+   837→    }
+   838→    return %orig(arg1);
+   839→}
+   840→%end
+   841→
+   842→%hook BDInstallGlobalConfig
+   843→- (id)currentAppRegion {
+   844→ if ([BHIManager regionChangingEnabled]) {
+   845→        if ([BHIManager selectedRegion]) {
+   846→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   847→            return selectedRegion[@"code"];
+   848→        }
+   849→        return %orig;
+   850→    }
+   851→    return %orig;
+   852→}
+   853→- (void)setCurrentAppRegion:(id)arg1 {
+   854→    if ([BHIManager regionChangingEnabled]) {
+   855→        if ([BHIManager selectedRegion]) {
+   856→            NSDictionary *selectedRegion = [BHIManager selectedRegion];
+   857→            return %orig(selectedRegion[@"code"]);
+   858→        }
+   859→        return %orig(arg1);
+   860→    }
+   861→    return %orig(arg1);
+   862→}
+   863→%end
+   864→
+   865→%hook ACCCreationPublishAction
+   866→- (BOOL)is_open_hd {
+   867→    if ([BHIManager uploadHD]) {
+   868→        return 1;
+   869→    }
+   870→    return %orig;
+   871→}
+   872→- (void)setIs_open_hd:(BOOL)arg1 {
+   873→    if ([BHIManager uploadHD]) {
+   874→        %orig(1);
+   875→    }
+   876→    else {
+   877→        return %orig;
+   878→    }
+   879→}
+   880→- (BOOL)is_have_hd {
+   881→    if ([BHIManager uploadHD]) {
+   882→        return 1;
+   883→    }
+   884→    return %orig;
+   885→}
+   886→- (void)setIs_have_hd:(BOOL)arg1 {
+   887→    if ([BHIManager uploadHD]) {
+   888→        %orig(1);
+   889→    }
+   890→    else {
+   891→        return %orig;
+   892→    }
+   893→}
+   894→
+   895→%end
+   896→
+   897→%hook TTKCommentPanelViewController
+   898→- (void)viewDidLoad {
+   899→    %orig;
+   900→    if ([BHIManager transparentCommnet]){
+   901→        UIView *commnetView = [self view];
+   902→        [commnetView setAlpha:0.90];
+   903→    }
+   904→    if ([BHIManager disableCommentTooltips]) {
+   905→        // NOTE: placeholder — walks the view hierarchy looking for tooltip/popup
+   906→        // views by class name. This is a best-effort generic approach since the
+   907→        // exact tooltip class isn't in TikTokHeaders.h yet; verify via class-dump
+   908→        // and swap in a direct %hook on the real tooltip class for reliability.
+   909→        [self pxHideTooltipViewsIn:self.view];
+   910→    }
+   911→}
+   912→- (void)viewDidLayoutSubviews {
+   913→    %orig;
+   914→    if ([BHIManager hideEmojiPanel]) {
+   915→        [self pxHideEmojiPanelIn:self.view];
+   916→    }
+   917→    if ([BHIManager autoExpandReplies]) {
+   918→        [self pxAutoExpandRepliesIn:self.view];
+   919→    }
+   920→}
+   921→%new - (void)pxHideTooltipViewsIn:(UIView *)root {
+   922→    for (UIView *subview in root.subviews) {
+   923→        NSString *className = NSStringFromClass([subview class]);
+   924→        if ([className.lowercaseString containsString:@"tooltip"] || [className.lowercaseString containsString:@"guide"]) {
+   925→            subview.hidden = YES;
+   926→        }
+   927→        [self pxHideTooltipViewsIn:subview];
+   928→    }
+   929→}
+   930→%new - (void)pxHideEmojiPanelIn:(UIView *)root {
+   931→    // NOTE: best-effort — matches views by class name containing "emoji".
+   932→    // Verify the real class via class-dump if this doesn't catch it reliably.
+   933→    for (UIView *subview in root.subviews) {
+   934→        NSString *className = NSStringFromClass([subview class]).lowercaseString;
+   935→        if ([className containsString:@"emoji"]) {
+   936→            subview.hidden = YES;
+   937→        }
+   938→        [self pxHideEmojiPanelIn:subview];
+   939→    }
+   940→}
+   941→%new - (void)pxAutoExpandRepliesIn:(UIView *)root {
+   942→    // NOTE: best-effort — finds "View X replies" buttons by title text and taps
+   943→    // them programmatically. English-UI dependent; adjust the match string if
+   944→    // your TikTok is set to a different language.
+   945→    for (UIView *subview in root.subviews) {
+   946→        if ([subview isKindOfClass:[UIButton class]]) {
+   947→            UIButton *button = (UIButton *)subview;
+   948→            NSString *title = [button titleForState:UIControlStateNormal].lowercaseString;
+   949→            if ([title containsString:@"repl"] && [title containsString:@"view"]) {
+   950→                [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+   951→            }
+   952→        }
+   953→        [self pxAutoExpandRepliesIn:subview];
+   954→    }
+   955→}
+   956→%end
+   957→
+   958→%hook AWEAwemeModel // no ads, show porgress bar
+   959→- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {
+   960→    id orig = %orig;
+   961→    return [BHIManager hideAds] && self.isAds ? nil : orig;
+   962→}
+   963→- (id)init {
+   964→    id orig = %orig;
+   965→    return [BHIManager hideAds] && self.isAds ? nil : orig;
+   966→}
+   967→
+   968→- (BOOL)progressBarDraggable {
+   969→    return [BHIManager progressBar] || %orig;
+   970→}
+   971→- (BOOL)progressBarVisible {
+   972→    return [BHIManager progressBar] || %orig;
+   973→}
+   974→- (void)live_callInitWithDictyCategoryMethod:(id)arg1 {
+   975→    if (![BHIManager disableLive]) {
+   976→        %orig;
+   977→    }
+   978→}
+   979→+ (id)liveStreamURLJSONTransformer {
+   980→    if ([BHIManager disableLive]) {
+   981→        return nil;
+   982→    }
+   983→    return %orig;
+   984→}
+   985→+ (id)relatedLiveJSONTransformer {
+   986→    if ([BHIManager disableLive]) {
+   987→        return nil;
+   988→    }
+   989→    return %orig;
+   990→}
+   991→+ (id)rawModelFromLiveRoomModel:(id)arg1 {
+   992→    if ([BHIManager disableLive]) {
+   993→        return nil;
+   994→    }
+   995→    return %orig;
+   996→}
+   997→+ (id)aweLiveRoom_subModelPropertyKey {
+   998→    if ([BHIManager disableLive]) {
+   999→        return nil;
+  1000→    }
+  1001→    return %orig;
+  1002→}
+  1003→%end
+  1004→
+  1005→%hook AWEPlayInteractionWarningElementView
+  1006→- (id)warningImage {
+  1007→    if ([BHIManager disableWarnings]) {
+  1008→        return nil;
+  1009→    }
+  1010→    return %orig;
+  1011→}
+  1012→- (id)warningLabel {
+  1013→    if ([BHIManager disableWarnings]) {
+  1014→        return nil;
+  1015→    }
+  1016→    return %orig;
+  1017→}
+  1018→%end
+  1019→
+  1020→%hook TUXLabel
+  1021→- (void)setText:(NSString*)arg1 {
+  1022→    if ([BHIManager showUsername]) {
+  1023→        if ([[[self superview] superview] isKindOfClass:%c(AWEPlayInteractionAuthorUserNameButton)]){
+  1024→            AWEFeedCellViewController *rootVC = [[[self superview] superview] yy_viewController];
+  1025→            AWEAwemeModel *model = rootVC.model;
+  1026→            AWEUserModel *authorModel = model.author;
+  1027→            NSString *nickname = authorModel.nickname;
+  1028→            NSString *username = authorModel.socialName;
+  1029→            %orig(username);
+  1030→        }else {
+  1031→            %orig;
+  1032→        }
+  1033→    }else {
+  1034→        %orig;
+  1035→    }
+  1036→}
+  1037→%end
+  1038→
+  1039→%hook AWENewFeedTableViewController
+  1040→- (BOOL)disablePullToRefreshGestureRecognizer {
+  1041→    if ([BHIManager disablePullToRefresh]){
+  1042→        return 1;
+  1043→    }
+  1044→    return %orig;
+  1045→}
+  1046→
+  1047→%end
+  1048→
+  1049→%hook AWEPlayVideoPlayerController // auto play next video and stop looping video
+  1050→- (void)playerWillLoopPlaying:(id)arg1 {
+  1051→    if ([BHIManager autoPlay]) {
+  1052→        if ([self.container.parentViewController isKindOfClass:%c(AWENewFeedTableViewController)]) {
+  1053→            [((AWENewFeedTableViewController *)self.container.parentViewController) scrollToNextVideo];
+  1054→            return;
+  1055→        }
+  1056→    }
+  1057→    %orig;
+  1058→}
+  1059→- (BOOL)loop {
+  1060→    if ([BHIManager stopPlay]) {
+  1061→        return 0;
+  1062→    }
+  1063→    return %orig; 
+  1064→}
+  1065→- (void)setLoop:(BOOL)arg1 {
+  1066→    if ([BHIManager stopPlay]) {
+  1067→        %orig(0);
+  1068→    }else {
+  1069→        %orig;
+  1070→    }
+  1071→}
+  1072→%end
+  1073→
+  1074→%hook AWEMaskInfoModel // Disable Unsensitive Content
+  1075→- (BOOL)showMask {
+  1076→    if ([BHIManager disableUnsensitive]) {
+  1077→        return 0;
+  1078→    }
+  1079→    return %orig;
+  1080→}
+  1081→- (void)setShowMask:(BOOL)arg1 {
+  1082→    if ([BHIManager disableUnsensitive]) {
+  1083→        %orig(0);
+  1084→    }
+  1085→    else {
+  1086→        %orig;
+  1087→    }
+  1088→}
+  1089→%end
+  1090→
+  1091→%hook AWEAwemeACLItem // remove default watermark
+  1092→- (void)setWatermarkType:(NSUInteger)arg1 {
+  1093→    if ([BHIManager removeWatermark]){
+  1094→        %orig(1);
+  1095→    }
+  1096→    else { 
+  1097→        %orig;
+  1098→    }
+  1099→    
+  1100→}
+  1101→- (NSUInteger)watermarkType {
+  1102→    if ([BHIManager removeWatermark]){
+  1103→        return 1;
+  1104→    }
+  1105→    return %orig;
+  1106→}
+  1107→%end
+  1108→
+  1109→%hook UIButton // follow confirmation broken 
+  1110→- (void)_onTouchUpInside {
+  1111→    if ([BHIManager followConfirmation] && [self.currentTitle isEqualToString:@"Follow"]) {
+  1112→        showConfirmation(^(void) { %orig; });
+  1113→    } else {
+  1114→        %orig;
+  1115→    }
+  1116→}
+  1117→%end
+  1118→%hook AWEPlayInteractionUserAvatarElement
+  1119→- (void)onFollowViewClicked:(id)sender {
+  1120→    if ([BHIManager followConfirmation]) {
+  1121→        showConfirmation(^(void) { %orig; });
+  1122→    } else {
+  1123→        return %orig;
+  1124→    }
+  1125→}
+  1126→%end
+  1127→
+  1128→%hook TTKProfileBaseComponentModel // Fake Followers, Fake Following and FakeVerified.
+  1129→
+  1130→- (NSDictionary *)bizData {
+  1131→        if ([BHIManager fakeChangesEnabled]) {
+  1132→                NSDictionary *originalData = %orig;
+  1133→                NSMutableDictionary *modifiedData = [originalData mutableCopy];
+  1134→                
+  1135→                NSNumber *fakeFollowingCount = [self numberFromUserDefaultsForKey:@"following_count"];
+  1136→                NSNumber *fakeFollowersCount = [self numberFromUserDefaultsForKey:@"follower_count"];
+  1137→                
+  1138→                if ([self.componentID isEqualToString:@"relation_info_follower"]) {
+  1139→                        modifiedData[@"follower_count"] = fakeFollowersCount ?: @0; 
+  1140→                } else if ([self.componentID isEqualToString:@"relation_info_following"]) {
+  1141→                        modifiedData[@"following_count"] = fakeFollowingCount ?: @0; 
+  1142→                        modifiedData[@"formatted_number"] = [self formattedStringFromNumber:fakeFollowingCount ?: @0];
+  1143→                } 
+  1144→                return [modifiedData copy];
+  1145→        }
+  1146→        return %orig;
+  1147→}
+  1148→
+  1149→- (NSArray *)components {
+  1150→        if ([BHIManager fakeVerified]) {
+  1151→                NSArray *originalComponents = %orig;
+  1152→                if ([self.componentID isEqualToString:@"user_account_base_info"] && originalComponents.count == 1) {
+  1153→                        NSMutableArray *modifiedComponents = [originalComponents mutableCopy];
+  1154→                        TTKProfileBaseComponentModel *fakeVerify = [%c(TTKProfileBaseComponentModel) new];
+  1155→                        fakeVerify.componentID = @"user_account_verify";
+  1156→                        fakeVerify.name = @"user_account_verify";
+  1157→                        [modifiedComponents addObject:fakeVerify];
+  1158→                        return [modifiedComponents copy];
+  1159→                }
+  1160→        }
+  1161→        return %orig;
+  1162→}
+  1163→
+  1164→%new - (NSNumber *)numberFromUserDefaultsForKey:(NSString *)key {
+  1165→    NSString *stringValue = [[NSUserDefaults standardUserDefaults] stringForKey:key];
+  1166→    return (stringValue.length > 0) ? @([stringValue doubleValue]) : @0; 
+  1167→}
+  1168→
+  1169→%new - (NSString *)formattedStringFromNumber:(NSNumber *)number {
+  1170→    if (!number) return @"0"; 
+  1171→
+  1172→    double value = [number doubleValue];
+  1173→    if (value == 0) return @"0"; 
+  1174→
+  1175→    NSString *formattedString;
+  1176→    if (value >= 1e9) {
+  1177→        formattedString = [NSString stringWithFormat:@"%.1fB", value / 1e9];
+  1178→    } else if (value >= 1e6) {
+  1179→        formattedString = [NSString stringWithFormat:@"%.1fM", value / 1e6];
+  1180→    } else if (value >= 1e3) {
+  1181→        formattedString = [NSString stringWithFormat:@"%.1fk", value / 1e3];
+  1182→    } else {
+  1183→        formattedString = [NSString stringWithFormat:@"%.0f", value];
+  1184→    }
+  1185→
+  1186→    return formattedString;
+  1187→}
+  1188→
+  1189→%end
+  1190→
+  1191→%hook AWEFeedVideoButton // like feed confirmation
+  1192→- (void)_onTouchUpInside {
+  1193→    if ([BHIManager likeConfirmation] && [self.imageNameString isEqualToString:@"ic_like_fill_1_new"]) {
+  1194→        showConfirmation(^(void) { %orig; });
+  1195→    } else {
+  1196→        %orig;
+  1197→    }
+  1198→}
+  1199→%end
+  1200→%hook AWECommentPanelCell // like/dislike comment confirmation
+  1201→- (void)onLikeAction:(id)arg1 {
+  1202→    if ([BHIManager likeCommentConfirmation]) {
+  1203→        showConfirmation(^(void) { %orig; });
+  1204→    } else {
+  1205→        return %orig;
+  1206→    }
+  1207→}
+  1208→- (void)onDislikeAction:(id)arg1 {
+  1209→    if ([BHIManager dislikeCommentConfirmation]) {
+  1210→        showConfirmation(^(void) { %orig; });
+  1211→    } else {
+  1212→        return %orig;
+  1213→    }
+  1214→}
+  1215→- (void)layoutSubviews {
+  1216→    %orig;
+  1217→    if (([BHIManager copyCommentWithoutUsername] || [BHIManager translateComment]) && !self.pxHasCommentGesture) {
+  1218→        self.pxHasCommentGesture = YES;
+  1219→        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(pxHandleCommentLongPress:)];
+  1220→        longPress.minimumPressDuration = 0.4;
+  1221→        [self addGestureRecognizer:longPress];
+  1222→    }
+  1223→}
+  1224→%new - (void)pxHandleCommentLongPress:(UILongPressGestureRecognizer *)sender {
+  1225→    if (sender.state != UIGestureRecognizerStateBegan) return;
+  1226→
+  1227→    // NOTE: "commentModel"/"text" are placeholders — confirm the real key path via
+  1228→    // Real property names confirmed via class-dump of MusicallyCore binary v46.0.0:
+  1229→    // commentText = plain text body; commentContent = richer variant (same content, different type).
+  1230→    id commentModel = [self valueForKey:@"commentModel"];
+  1231→    NSString *commentText = [commentModel valueForKey:@"commentText"];
+  1232→    if (commentText.length == 0) {
+  1233→        commentText = [commentModel valueForKey:@"commentContent"];
+  1234→    }
+  1235→    if (commentText.length == 0) return;
+  1236→
+  1237→    TUXActionSheetController *alert = [[%c(TUXActionSheetController) alloc] initWithTitle:nil];
+  1238→    if ([BHIManager copyCommentWithoutUsername]) {
+  1239→        [alert addAction:[[%c(TUXActionSheetAction) alloc] initWithStyle:0 title:@"Copy comment text" subtitle:nil image:[UIImage systemImageNamed:@"clipboard"] imageLabel:nil handler:^(TUXActionSheetAction * _Nonnull action) {
+  1240→            UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1241→            pasteboard.string = commentText;
+  1242→            PXScheduleClipboardClear();
+  1243→        }]];
+  1244→    }
+  1245→    if ([BHIManager translateComment]) {
+  1246→        [alert addAction:[[%c(TUXActionSheetAction) alloc] initWithStyle:0 title:@"Translate comment" subtitle:nil image:[UIImage systemImageNamed:@"globe"] imageLabel:nil handler:^(TUXActionSheetAction * _Nonnull action) {
+  1247→            PXTranslateText(commentText);
+  1248→        }]];
+  1249→    }
+  1250→    [alert setDismissOnDraggingDown:true];
+  1251→    [self.yy_viewController presentViewController:alert animated:YES completion:nil];
+  1252→}
+  1253→%property (nonatomic, assign) BOOL pxHasCommentGesture;
+  1254→%end
+  1255→
+  1256→%hook AWEUserModel // follower, following Count fake  
+  1257→- (NSNumber *)followerCount {
+  1258→    if ([BHIManager fakeChangesEnabled]) {
+  1259→        NSString *fakeCountString = [[NSUserDefaults standardUserDefaults] stringForKey:@"follower_count"];
+  1260→        if (!(fakeCountString.length == 0)) {
+  1261→            NSInteger fakeCount = [fakeCountString integerValue];
+  1262→            return [NSNumber numberWithInt:fakeCount];
+  1263→        }
+  1264→
+  1265→        return %orig;
+  1266→    }
+  1267→
+  1268→    return %orig;
+  1269→}
+  1270→- (NSNumber *)followingCount {
+  1271→    if ([BHIManager fakeChangesEnabled]) {
+  1272→        NSString *fakeCountString = [[NSUserDefaults standardUserDefaults] stringForKey:@"following_count"];
+  1273→        if (!(fakeCountString.length == 0)) {
+  1274→            NSInteger fakeCount = [fakeCountString integerValue];
+  1275→            return [NSNumber numberWithInt:fakeCount];
+  1276→        }
+  1277→
+  1278→        return %orig;
+  1279→    }
+  1280→
+  1281→    return %orig;
+  1282→}
+  1283→%end
+  1284→
+  1285→%hook AWETextInputController
+  1286→- (NSUInteger)maxLength {
+  1287→    if ([BHIManager extendedComment]) {
+  1288→        return 500;
+  1289→    }
+  1290→
+  1291→    return %orig;
+  1292→}
+  1293→%end
+  1294→%hook AWEPlayVideoPlayerController
+  1295→- (void)containerDidFullyDisplayWithReason:(NSInteger)arg1 {
+  1296→    if ([[[self container] parentViewController] isKindOfClass:%c(AWENewFeedTableViewController)] && [BHIManager skipRecommendations]) {
+  1297→        AWENewFeedTableViewController *rootVC = [[self container] parentViewController];
+  1298→        AWEAwemeModel *currentModel = [rootVC currentAweme];
+  1299→        if ([currentModel isUserRecommendBigCard]) {
+  1300→            [rootVC scrollToNextVideo];
+  1301→        }
+  1302→    }else {
+  1303→        %orig;
+  1304→    }
+  1305→
+  1306→    // Usage stats: count this as a watched video (once per fully-displayed container).
+  1307→    NSInteger totalVideos = [[NSUserDefaults standardUserDefaults] integerForKey:@"px_total_videos"];
+  1308→    [[NSUserDefaults standardUserDefaults] setInteger:totalVideos + 1 forKey:@"px_total_videos"];
+  1309→
+  1310→    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+  1311→    formatter.dateFormat = @"yyyy-MM-dd";
+  1312→    NSString *todayKey = [formatter stringFromDate:[NSDate date]];
+  1313→    NSString *storedDay = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_stats_day"];
+  1314→    NSInteger todayVideos = [[NSUserDefaults standardUserDefaults] integerForKey:@"px_today_videos"];
+  1315→    if (![storedDay isEqualToString:todayKey]) {
+  1316→        todayVideos = 0;
+  1317→        [[NSUserDefaults standardUserDefaults] setDouble:0 forKey:@"px_today_seconds"];
+  1318→        [[NSUserDefaults standardUserDefaults] setValue:todayKey forKey:@"px_stats_day"];
+  1319→    }
+  1320→    [[NSUserDefaults standardUserDefaults] setInteger:todayVideos + 1 forKey:@"px_today_videos"];
+  1321→}
+  1322→%end
+  1323→%hook AWEProfileEditTextViewController
+  1324→- (NSInteger)maxTextLength {
+  1325→    if ([BHIManager extendedBio]) {
+  1326→        return 222;
+  1327→    }
+  1328→
+  1329→    return %orig;
+  1330→}
+  1331→%end
+  1332→%hook AWEPlayInteractionAuthorView
+  1333→%new - (NSString *)emojiForCountryCode:(NSString *)countryCode {
+  1334→    // Convert the country code to uppercase
+  1335→    NSString *uppercaseCountryCode = [countryCode uppercaseString];
+  1336→    
+  1337→    // Ensure the country code has exactly two characters
+  1338→    if (uppercaseCountryCode.length != 2) {
+  1339→        return nil;
+  1340→    }
+  1341→    
+  1342→    // Convert the country code to the regional indicator symbols
+  1343→    uint32_t firstLetter = [uppercaseCountryCode characterAtIndex:0] + 0x1F1E6 - 'A';
+  1344→    uint32_t secondLetter = [uppercaseCountryCode characterAtIndex:1] + 0x1F1E6 - 'A';
+  1345→    
+  1346→    // Create the emoji using the regional indicator symbols
+  1347→    NSString *flagEmoji = [[NSString alloc] initWithBytes:&firstLetter length:4 encoding:NSUTF32LittleEndianStringEncoding];
+  1348→    flagEmoji = [flagEmoji stringByAppendingString:[[NSString alloc] initWithBytes:&secondLetter length:4 encoding:NSUTF32LittleEndianStringEncoding]];
+  1349→    
+  1350→    return flagEmoji;
+  1351→}
+  1352→
+  1353→- (void)layoutSubviews {
+  1354→    %orig;
+  1355→    if ([BHIManager uploadRegion]){
+  1356→        for (int i = 0; i < [[self subviews] count]; i ++){
+  1357→            id j = [[self subviews] objectAtIndex:i];
+  1358→            if ([j isKindOfClass:%c(UIStackView)]){
+  1359→                CGRect frame = [j frame];
+  1360→                frame.origin.x = 39.5; 
+  1361→                [j setFrame:frame];
+  1362→            }else {
+  1363→                [[self viewWithTag:666] removeFromSuperview];
+  1364→            }
+  1365→        }
+  1366→        [[self viewWithTag:666] removeFromSuperview];
+  1367→        AWEFeedCellViewController* rootVC = self.yy_viewController;
+  1368→        AWEAwemeModel *model = rootVC.model;
+  1369→        NSString *countryID = model.region;
+  1370→        UILabel *uploadLabel = [[UILabel alloc]initWithFrame:CGRectMake(0,2,39.5,20.5)];
+  1371→        NSString *countryEmoji = [self emojiForCountryCode:countryID];
+  1372→        uploadLabel.text = [NSString stringWithFormat:@"%@ •",countryEmoji];
+  1373→        uploadLabel.tag = 666;
+  1374→        [uploadLabel setTextColor: [UIColor whiteColor]];
+  1375→        [uploadLabel sizeToFit];
+  1376→        [self addSubview:uploadLabel];
+  1377→    }
+  1378→}
+  1379→%end
+  1380→%hook TIKTOKProfileHeaderView // copy profile information
+  1381→- (id)initWithFrame:(CGRect)arg1 {
+  1382→    self = %orig;
+  1383→    if ([BHIManager profileCopy]) {
+  1384→        [self addHandleLongPress];
+  1385→    }
+  1386→    return self;
+  1387→}
+  1388→%end
+  1389→
+  1390→%hook AWELiveFeedEntranceView
+  1391→- (void)switchStateWithTapped:(BOOL)arg1 {
+  1392→    if (![BHIManager liveActionEnabled] || [BHIManager selectedLiveAction] == 0) {
+  1393→        %orig;
+  1394→    } else if ([BHIManager liveActionEnabled] && [[BHIManager selectedLiveAction] intValue] == 1) {
+  1395→        UINavigationController *PXTokSettings = [[UINavigationController alloc] initWithRootViewController:[[ViewController alloc] init]];
+  1396→        [topMostController() presentViewController:PXTokSettings animated:true completion:nil];
+  1397→    } 
+  1398→    else {
+  1399→        %orig;
+  1400→    }
+  1401→
+  1402→}
+  1403→- (void)layoutSubviews {
+  1404→    %orig;
+  1405→    if ([BHIManager hideLiveBadge]) {
+  1406→        self.hidden = YES;
+  1407→    }
+  1408→}
+  1409→%end
+  1410→
+  1411→
+  1412→%hook AWEFeedViewTemplateCell
+  1413→%property (nonatomic, strong) JGProgressHUD *hud;
+  1414→%property(nonatomic, assign) BOOL elementsHidden;
+  1415→%property (nonatomic, retain) NSString *fileextension;
+  1416→%property (nonatomic, retain) UIProgressView *progressView;
+  1417→- (void)configWithModel:(id)model {
+  1418→    %orig;
+  1419→    self.elementsHidden = false;
+  1420→    if ([BHIManager downloadButton]){
+  1421→        [self addDownloadButton];
+  1422→    }
+  1423→    if ([BHIManager hideElementButton]) {
+  1424→        [self addHideElementButton];
+  1425→    }
+  1426→}
+  1427→- (void)configureWithModel:(id)model {
+  1428→    %orig;
+  1429→    self.elementsHidden = false;
+  1430→    if ([BHIManager downloadButton]){
+  1431→        [self addDownloadButton];
+  1432→    }
+  1433→    if ([BHIManager hideElementButton]) {
+  1434→        [self addHideElementButton];
+  1435→    }
+  1436→}
+  1437→%new - (void)addDownloadButton {
+  1438→    UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  1439→    [downloadButton setTag:998];
+  1440→    [downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
+  1441→    [downloadButton addTarget:self action:@selector(downloadButtonHandler:) forControlEvents:UIControlEventTouchUpInside];
+  1442→    [downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
+  1443→    if (![self viewWithTag:998]) {
+  1444→        [downloadButton setTintColor:[UIColor whiteColor]];
+  1445→        [self addSubview:downloadButton];
+  1446→
+  1447→        [NSLayoutConstraint activateConstraints:@[
+  1448→            [downloadButton.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:90],
+  1449→            [downloadButton.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-10],
+  1450→            [downloadButton.widthAnchor constraintEqualToConstant:30],
+  1451→            [downloadButton.heightAnchor constraintEqualToConstant:30],
+  1452→        ]];
+  1453→    }
+  1454→}
+  1455→%new - (void)downloadHDVideo:(AWEAwemeBaseViewController *)rootVC {
+  1456→    NSString *as = rootVC.model.itemID;
+  1457→    NSURL *downloadableURL = [NSURL URLWithString:[NSString stringWithFormat:@"https://tikwm.com/video/media/hdplay/%@.mp4", as]];
+  1458→    self.fileextension = [rootVC.model.video.playURL bestURLtoDownloadFormat];
+  1459→    if (downloadableURL) {
+  1460→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1461→        [dwManager downloadFileWithURL:downloadableURL];
+  1462→        [dwManager setDelegate:self];
+  1463→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1464→        self.hud.textLabel.text = @"Downloading";
+  1465→        [self.hud showInView:topMostController().view];
+  1466→    }
+  1467→}
+  1468→%new - (void)downloadVideo:(AWEAwemeBaseViewController *)rootVC {
+  1469→    NSString *as = rootVC.model.itemID;
+  1470→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1471→    self.fileextension = [rootVC.model.video.playURL bestURLtoDownloadFormat];
+  1472→    if (downloadableURL) {
+  1473→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1474→        [dwManager downloadFileWithURL:downloadableURL];
+  1475→        [dwManager setDelegate:self];
+  1476→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1477→        self.hud.textLabel.text = @"Downloading";
+  1478→        [self.hud showInView:topMostController().view];
+  1479→    }
+  1480→}
+  1481→%new - (void)downloadPhotos:(TTKPhotoAlbumDetailCellController *)rootVC photoIndex:(unsigned long)index {
+  1482→    AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1483→            NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1484→            AWEPhotoAlbumPhoto *currentPhoto = [photos objectAtIndex:index];
+  1485→
+  1486→                NSURL *downloadableURL = [currentPhoto.originPhotoURL bestURLtoDownload];
+  1487→                self.fileextension = [currentPhoto.originPhotoURL bestURLtoDownloadFormat];
+  1488→                if (downloadableURL) {
+  1489→                    BHDownload *dwManager = [[BHDownload alloc] init];
+  1490→                    [dwManager downloadFileWithURL:downloadableURL];
+  1491→                    [dwManager setDelegate:self];
+  1492→                    self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1493→                    self.hud.textLabel.text = @"Downloading";
+  1494→                     [self.hud showInView:topMostController().view];
+  1495→                }
+  1496→            
+  1497→    }
+  1498→
+  1499→%new - (void)downloadPhotos:(TTKPhotoAlbumDetailCellController *)rootVC {
+  1500→    NSString *video_description = rootVC.model.music_songName;
+  1501→    AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1502→
+  1503→            NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1504→            NSMutableArray<NSURL *> *fileURLs = [NSMutableArray array];
+  1505→
+  1506→            for (AWEPhotoAlbumPhoto *currentPhoto in photos) {
+  1507→                NSURL *downloadableURL = [currentPhoto.originPhotoURL bestURLtoDownload];
+  1508→                self.fileextension = [currentPhoto.originPhotoURL bestURLtoDownloadFormat];
+  1509→                if (downloadableURL) {
+  1510→                    [fileURLs addObject:downloadableURL];
+  1511→                }
+  1512→            }
+  1513→
+  1514→            BHMultipleDownload *dwManager = [[BHMultipleDownload alloc] init];
+  1515→            [dwManager setDelegate:self];
+  1516→            [dwManager downloadFiles:fileURLs];
+  1517→            self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1518→            self.hud.textLabel.text = @"Downloading";
+  1519→            [self.hud showInView:topMostController().view];
+  1520→
+  1521→}
+  1522→%new - (void)downloadMusic:(AWEAwemeBaseViewController *)rootVC {
+  1523→    NSString *as = rootVC.model.itemID;
+  1524→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1525→    self.fileextension = @"mp3";
+  1526→    if (downloadableURL) {
+  1527→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1528→        [dwManager downloadFileWithURL:downloadableURL];
+  1529→        [dwManager setDelegate:self];
+  1530→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1531→        self.hud.textLabel.text = @"Downloading";
+  1532→        [self.hud showInView:topMostController().view];
+  1533→    }
+  1534→}
+  1535→%new - (void)copyMusic:(AWEAwemeBaseViewController *)rootVC {
+  1536→    NSURL *downloadableURL = [((AWEMusicModel *)rootVC.model.music).playURL bestURLtoDownload];
+  1537→    if (downloadableURL) {
+  1538→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1539→        pasteboard.string = [downloadableURL absoluteString];
+  1540→    } else {
+  1541→        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"Could Not Copy Music." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1542→    }
+  1543→}
+  1544→%new - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC {
+  1545→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1546→    if (downloadableURL) {
+  1547→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1548→        pasteboard.string = [downloadableURL absoluteString];
+  1549→    } else {
+  1550→        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1551→    }
+  1552→}
+  1553→%new - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC {
+  1554→    NSString *video_description = rootVC.model.music_songName;
+  1555→    if (video_description) {
+  1556→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1557→        pasteboard.string = video_description;
+  1558→        PXScheduleClipboardClear();
+  1559→    } else {
+  1560→        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1561→    }
+  1562→}
+  1563→%new - (void)translateDecription:(AWEAwemeBaseViewController *)rootVC {
+  1564→    NSString *video_description = rootVC.model.music_songName;
+  1565→    PXTranslateText(video_description);
+  1566→}
+  1567→%new - (void) downloadButtonHandler:(UIButton *)sender {
+  1568→    AWEAwemeBaseViewController *rootVC = self.viewController;
+  1569→    if ([rootVC isKindOfClass:%c(AWEFeedCellViewController)]) {
+  1570→
+  1571→         UIAction *action1 = [UIAction actionWithTitle:@"Download Video"
+  1572→                                            image:[UIImage systemImageNamed:@"film"]
+  1573→                                       identifier:nil
+  1574→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1575→                                            [self downloadVideo:rootVC];
+  1576→    }];
+  1577→        UIAction *action0 = [UIAction actionWithTitle:@"Download HD Video"
+  1578→                                            image:[UIImage systemImageNamed:@"film"]
+  1579→                                       identifier:nil
+  1580→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1581→                                            [self downloadHDVideo:rootVC];
+  1582→    }];
+  1583→    UIAction *action2 = [UIAction actionWithTitle:@"Download Music"
+  1584→                                            image:[UIImage systemImageNamed:@"music.note"]
+  1585→                                       identifier:nil
+  1586→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1587→                                            [self downloadMusic:rootVC];
+  1588→    }];
+  1589→    UIAction *action3 = [UIAction actionWithTitle:@"Copy Music link"
+  1590→                                            image:[UIImage systemImageNamed:@"link"]
+  1591→                                       identifier:nil
+  1592→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1593→                                            [self copyMusic:rootVC];
+  1594→    }];
+  1595→    UIAction *action4 = [UIAction actionWithTitle:@"Copy Video link"
+  1596→                                            image:[UIImage systemImageNamed:@"link"]
+  1597→                                       identifier:nil
+  1598→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1599→                                            [self copyVideo:rootVC];
+  1600→    }];
+  1601→    UIAction *action5 = [UIAction actionWithTitle:@"Copy Decription"
+  1602→                                            image:[UIImage systemImageNamed:@"note.text"]
+  1603→                                       identifier:nil
+  1604→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1605→                                            [self copyDecription:rootVC];
+  1606→    }];
+  1607→    UIAction *action6 = [UIAction actionWithTitle:@"Translate Description"
+  1608→                                            image:[UIImage systemImageNamed:@"globe"]
+  1609→                                       identifier:nil
+  1610→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1611→                                            [self translateDecription:rootVC];
+  1612→    }];
+  1613→    UIMenu *downloadMenu = [UIMenu menuWithTitle:@"Downloads Menu"
+  1614→                                        children:@[action1, action0,action2]];
+  1615→    UIMenu *copyMenu = [UIMenu menuWithTitle:@"Copy Menu"
+  1616→                                        children:[BHIManager translateDescription] ? @[action3, action4, action5, action6] : @[action3, action4, action5]];
+  1617→    UIMenu *mainMenu = [UIMenu menuWithTitle:@"" children:@[downloadMenu, copyMenu]];
+  1618→    [sender setMenu:mainMenu];
+  1619→    sender.showsMenuAsPrimaryAction = YES;
+  1620→    } else if ([self.viewController isKindOfClass:%c(TTKPhotoAlbumDetailCellController)]) {
+  1621→        TTKPhotoAlbumDetailCellController *rootVC = self.viewController;
+  1622→        AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1623→        NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1624→        unsigned long photosCount = [photos count];
+  1625→        NSMutableArray <UIAction *> *photosActions = [NSMutableArray array];
+  1626→            for (int i = 0; i < photosCount; i++) {
+  1627→        NSString *title = [NSString stringWithFormat:@"Download Photo %d", i+1];
+  1628→        UIAction *action = [UIAction actionWithTitle:title
+  1629→                                               image:[UIImage systemImageNamed:@"photo.fill"]
+  1630→                                          identifier:nil
+  1631→                                             handler:^(__kindof UIAction * _Nonnull action) {
+  1632→                                                [self downloadPhotos:rootVC photoIndex:i];
+  1633→        }];
+  1634→        [photosActions addObject:action];
+  1635→
+  1636→    }
+  1637→    UIAction *allPhotosAction = [UIAction actionWithTitle:@"Download All Photos"
+  1638→                                            image:[UIImage systemImageNamed:@"photo.fill"]
+  1639→                                       identifier:nil
+  1640→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1641→                                            [self downloadPhotos:rootVC];
+  1642→    }];
+  1643→    [photosActions addObject:allPhotosAction];
+  1644→    UIAction *action2 = [UIAction actionWithTitle:@"Download Music"
+  1645→                                            image:[UIImage systemImageNamed:@"music.note"]
+  1646→                                       identifier:nil
+  1647→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1648→                                            [self downloadMusic:rootVC];
+  1649→    }];
+  1650→    UIAction *action3 = [UIAction actionWithTitle:@"Copy Music link"
+  1651→                                            image:[UIImage systemImageNamed:@"link"]
+  1652→                                       identifier:nil
+  1653→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1654→                                            [self copyMusic:rootVC];
+  1655→    }];
+  1656→    UIAction *action4 = [UIAction actionWithTitle:@"Copy Video link"
+  1657→                                            image:[UIImage systemImageNamed:@"link"]
+  1658→                                       identifier:nil
+  1659→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1660→                                            [self copyVideo:rootVC];
+  1661→    }];
+  1662→    UIAction *action5 = [UIAction actionWithTitle:@"Copy Decription"
+  1663→                                            image:[UIImage systemImageNamed:@"note.text"]
+  1664→                                       identifier:nil
+  1665→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1666→                                            [self copyDecription:rootVC];
+  1667→    }];
+  1668→    UIAction *action6 = [UIAction actionWithTitle:@"Translate Description"
+  1669→                                            image:[UIImage systemImageNamed:@"globe"]
+  1670→                                       identifier:nil
+  1671→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1672→                                            [self translateDecription:rootVC];
+  1673→    }];
+  1674→    UIMenu *PhotosMenu = [UIMenu menuWithTitle:@"Download Photos Menu"
+  1675→                                        children:photosActions];
+  1676→    UIMenu *downloadMenu = [UIMenu menuWithTitle:@"Downloads Menu"
+  1677→                                        children:@[action2]];
+  1678→    UIMenu *copyMenu = [UIMenu menuWithTitle:@"Copy Menu"
+  1679→                                        children:[BHIManager translateDescription] ? @[action3, action4, action5, action6] : @[action3, action4, action5]];
+  1680→    UIMenu *mainMenu = [UIMenu menuWithTitle:@"" children:@[PhotosMenu, downloadMenu, copyMenu]];
+  1681→    [sender setMenu:mainMenu];
+  1682→    sender.showsMenuAsPrimaryAction = YES;
+  1683→    }else if ([self.viewController isKindOfClass:%c(TTKPhotoAlbumFeedCellController)]) {
+  1684→        TTKPhotoAlbumFeedCellController *rootVC = self.viewController;
+  1685→        AWEPlayPhotoAlbumViewController *photoAlbumController = [rootVC valueForKey:@"_photoAlbumController"];
+  1686→        NSArray <AWEPhotoAlbumPhoto *> *photos = rootVC.model.photoAlbum.photos;
+  1687→        unsigned long photosCount = [photos count];
+  1688→        NSMutableArray <UIAction *> *photosActions = [NSMutableArray array];
+  1689→            for (int i = 0; i < photosCount; i++) {
+  1690→        NSString *title = [NSString stringWithFormat:@"Download Photo %d", i+1];
+  1691→        UIAction *action = [UIAction actionWithTitle:title
+  1692→                                               image:[UIImage systemImageNamed:@"photo.fill"]
+  1693→                                          identifier:nil
+  1694→                                             handler:^(__kindof UIAction * _Nonnull action) {
+  1695→                                                [self downloadPhotos:rootVC photoIndex:i];
+  1696→        }];
+  1697→        [photosActions addObject:action];
+  1698→
+  1699→    }
+  1700→        UIAction *allPhotosAction = [UIAction actionWithTitle:@"Download Photos"
+  1701→                                            image:[UIImage systemImageNamed:@"photo.fill"]
+  1702→                                       identifier:nil
+  1703→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1704→                                            [self downloadPhotos:rootVC];
+  1705→    }];
+  1706→    [photosActions addObject:allPhotosAction];
+  1707→    UIAction *action2 = [UIAction actionWithTitle:@"Download Music"
+  1708→                                            image:[UIImage systemImageNamed:@"music.note"]
+  1709→                                       identifier:nil
+  1710→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1711→                                            [self downloadMusic:rootVC];
+  1712→    }];
+  1713→    UIAction *action3 = [UIAction actionWithTitle:@"Copy Music link"
+  1714→                                            image:[UIImage systemImageNamed:@"link"]
+  1715→                                       identifier:nil
+  1716→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1717→                                            [self copyMusic:rootVC];
+  1718→    }];
+  1719→    UIAction *action4 = [UIAction actionWithTitle:@"Copy Video link"
+  1720→                                            image:[UIImage systemImageNamed:@"link"]
+  1721→                                       identifier:nil
+  1722→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1723→                                            [self copyVideo:rootVC];
+  1724→    }];
+  1725→    UIAction *action5 = [UIAction actionWithTitle:@"Copy Decription"
+  1726→                                            image:[UIImage systemImageNamed:@"note.text"]
+  1727→                                       identifier:nil
+  1728→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1729→                                            [self copyDecription:rootVC];
+  1730→    }];
+  1731→    UIAction *action6 = [UIAction actionWithTitle:@"Translate Description"
+  1732→                                            image:[UIImage systemImageNamed:@"globe"]
+  1733→                                       identifier:nil
+  1734→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1735→                                            [self translateDecription:rootVC];
+  1736→    }];
+  1737→    UIMenu *PhotosMenu = [UIMenu menuWithTitle:@"Download Photos Menu"
+  1738→                                        children:photosActions];
+  1739→    UIMenu *downloadMenu = [UIMenu menuWithTitle:@"Downloads Menu"
+  1740→                                        children:@[action2]];
+  1741→    UIMenu *copyMenu = [UIMenu menuWithTitle:@"Copy Menu"
+  1742→                                        children:[BHIManager translateDescription] ? @[action3, action4, action5, action6] : @[action3, action4, action5]];
+  1743→    UIMenu *mainMenu = [UIMenu menuWithTitle:@"" children:@[PhotosMenu, downloadMenu, copyMenu]];
+  1744→    [sender setMenu:mainMenu];
+  1745→    sender.showsMenuAsPrimaryAction = YES;
+  1746→    }
+  1747→}
+  1748→%new - (void)addHideElementButton {
+  1749→    UIButton *hideElementButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  1750→    [hideElementButton setTag:999];
+  1751→    [hideElementButton setTranslatesAutoresizingMaskIntoConstraints:false];
+  1752→    [hideElementButton addTarget:self action:@selector(hideElementButtonHandler:) forControlEvents:UIControlEventTouchUpInside];
+  1753→    if (self.elementsHidden) {
+  1754→        [hideElementButton setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
+  1755→    } else {
+  1756→        [hideElementButton setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
+  1757→    }
+  1758→
+  1759→    if (![self viewWithTag:999]) {
+  1760→        [hideElementButton setTintColor:[UIColor whiteColor]];
+  1761→        [self addSubview:hideElementButton];
+  1762→
+  1763→        [NSLayoutConstraint activateConstraints:@[
+  1764→            [hideElementButton.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:50],
+  1765→            [hideElementButton.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-10],
+  1766→            [hideElementButton.widthAnchor constraintEqualToConstant:30],
+  1767→            [hideElementButton.heightAnchor constraintEqualToConstant:30],
+  1768→        ]];
+  1769→    }
+  1770→}
+  1771→%new - (void)hideElementButtonHandler:(UIButton *)sender {
+  1772→    AWEAwemeBaseViewController *rootVC = self.viewController;
+  1773→    if ([rootVC.interactionController isKindOfClass:%c(TTKFeedInteractionLegacyMainContainerElement)]) {
+  1774→        TTKFeedInteractionLegacyMainContainerElement *interactionController = rootVC.interactionController;
+  1775→        if (self.elementsHidden) {
+  1776→            self.elementsHidden = false;
+  1777→            [interactionController hideAllElements:false exceptArray:nil];
+  1778→            [sender setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
+  1779→        } else {
+  1780→            self.elementsHidden = true;
+  1781→            [interactionController hideAllElements:true exceptArray:nil];
+  1782→            [sender setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
+  1783→        }
+  1784→    }
+  1785→}
+  1786→
+  1787→%new - (void)downloaderProgress:(float)progress {
+  1788→    self.hud.detailTextLabel.text = [BHIManager getDownloadingPersent:progress];
+  1789→}
+  1790→%new - (void)downloaderDidFinishDownloadingAllFiles:(NSMutableArray<NSURL *> *)downloadedFilePaths {
+  1791→    [self.hud dismiss];
+  1792→    if ([BHIManager shareSheet]) {
+  1793→        [BHIManager showSaveVC:downloadedFilePaths];
+  1794→    }
+  1795→    else {
+  1796→        for (NSURL *url in downloadedFilePaths) {
+  1797→            [BHIManager saveMedia:url fileExtension:self.fileextension];
+  1798→        }
+  1799→    }
+  1800→}
+  1801→%new - (void)downloaderDidFailureWithError:(NSError *)error {
+  1802→    if (error) {
+  1803→        [self.hud dismiss];
+  1804→    }
+  1805→}
+  1806→
+  1807→%new - (void)downloadProgress:(float)progress {
+  1808→    self.progressView.progress = progress;
+  1809→    self.hud.detailTextLabel.text = [BHIManager getDownloadingPersent:progress];
+  1810→    self.hud.tapOutsideBlock = ^(JGProgressHUD * _Nonnull HUD) {
+  1811→        self.hud.textLabel.text = @"Backgrounding ✌️";
+  1812→        [self.hud dismissAfterDelay:0.4];
+  1813→    };
+  1814→}
+  1815→%new - (void)downloadDidFinish:(NSURL *)filePath Filename:(NSString *)fileName {
+  1816→    NSString *DocPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).firstObject;
+  1817→    NSFileManager *manager = [NSFileManager defaultManager];
+  1818→    NSURL *newFilePath = [[NSURL fileURLWithPath:DocPath] URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", NSUUID.UUID.UUIDString, self.fileextension]];
+  1819→    [manager moveItemAtURL:filePath toURL:newFilePath error:nil];
+  1820→    [self.hud dismiss];
+  1821→    NSArray *audioExtensions = @[@"mp3", @"aac", @"wav", @"m4a", @"ogg", @"flac", @"aiff", @"wma"];
+  1822→    if ([BHIManager shareSheet] || [audioExtensions containsObject:self.fileextension]) {
+  1823→        [BHIManager showSaveVC:@[newFilePath]];
+  1824→    }
+  1825→    else {
+  1826→        [BHIManager saveMedia:newFilePath fileExtension:self.fileextension];
+  1827→    }
+  1828→}
+  1829→%new - (void)downloadDidFailureWithError:(NSError *)error {
+  1830→    if (error) {
+  1831→        [self.hud dismiss];
+  1832→    }
+  1833→}
+  1834→%end
+  1835→
+  1836→%hook AWEAwemeDetailTableViewCell
+  1837→%property (nonatomic, strong) JGProgressHUD *hud;
+  1838→%property(nonatomic, assign) BOOL elementsHidden;
+  1839→%property (nonatomic, retain) UIProgressView *progressView;
+  1840→%property (nonatomic, retain) NSString *fileextension;
+  1841→- (void)configWithModel:(id)model {
+  1842→    %orig;
+  1843→    self.elementsHidden = false;
+  1844→    if ([BHIManager downloadButton]){
+  1845→        [self addDownloadButton];
+  1846→    }
+  1847→    if ([BHIManager hideElementButton]) {
+  1848→        [self addHideElementButton];
+  1849→    }
+  1850→}
+  1851→- (void)configureWithModel:(id)model {
+  1852→    %orig;
+  1853→    self.elementsHidden = false;
+  1854→    if ([BHIManager downloadButton]){
+  1855→        [self addDownloadButton];
+  1856→    }
+  1857→    if ([BHIManager hideElementButton]) {
+  1858→        [self addHideElementButton];
+  1859→    }
+  1860→}
+  1861→%new - (void)addDownloadButton {
+  1862→    UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  1863→    [downloadButton setTag:998];
+  1864→    [downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
+  1865→    [downloadButton addTarget:self action:@selector(downloadButtonHandler:) forControlEvents:UIControlEventTouchUpInside];
+  1866→    [downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
+  1867→    if (![self viewWithTag:998]) {
+  1868→        [downloadButton setTintColor:[UIColor whiteColor]];
+  1869→        [self addSubview:downloadButton];
+  1870→
+  1871→        [NSLayoutConstraint activateConstraints:@[
+  1872→            [downloadButton.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:90],
+  1873→            [downloadButton.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-10],
+  1874→            [downloadButton.widthAnchor constraintEqualToConstant:30],
+  1875→            [downloadButton.heightAnchor constraintEqualToConstant:30],
+  1876→        ]];
+  1877→    }
+  1878→}
+  1879→%new - (void)downloadHDVideo:(AWEAwemeBaseViewController *)rootVC {
+  1880→    NSString *as = rootVC.model.itemID;
+  1881→    NSURL *downloadableURL = [NSURL URLWithString:[NSString stringWithFormat:@"https://tikwm.com/video/media/hdplay/%@.mp4", as]];
+  1882→    self.fileextension = [rootVC.model.video.playURL bestURLtoDownloadFormat];
+  1883→    if (downloadableURL) {
+  1884→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1885→        [dwManager downloadFileWithURL:downloadableURL];
+  1886→        [dwManager setDelegate:self];
+  1887→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1888→        self.hud.textLabel.text = @"Downloading";
+  1889→        [self.hud showInView:topMostController().view];
+  1890→    }
+  1891→}
+  1892→%new - (void)downloadVideo:(AWEAwemeBaseViewController *)rootVC {
+  1893→    NSString *as = rootVC.model.itemID;
+  1894→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1895→        self.fileextension = [rootVC.model.video.playURL bestURLtoDownloadFormat];
+  1896→    if (downloadableURL) {
+  1897→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1898→        [dwManager downloadFileWithURL:downloadableURL];
+  1899→        [dwManager setDelegate:self];
+  1900→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1901→        self.hud.textLabel.text = @"Downloading";
+  1902→        [self.hud showInView:topMostController().view];
+  1903→    }
+  1904→}
+  1905→%new - (void)downloadMusic:(AWEAwemeBaseViewController *)rootVC {
+  1906→    NSString *as = rootVC.model.itemID;
+  1907→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1908→        self.fileextension = @"mp3";
+  1909→    if (downloadableURL) {
+  1910→        BHDownload *dwManager = [[BHDownload alloc] init];
+  1911→        [dwManager downloadFileWithURL:downloadableURL];
+  1912→        [dwManager setDelegate:self];
+  1913→        self.hud = [JGProgressHUD progressHUDWithStyle:JGProgressHUDStyleDark];
+  1914→        self.hud.textLabel.text = @"Downloading";
+  1915→        [self.hud showInView:topMostController().view];
+  1916→    }
+  1917→}
+  1918→%new - (void)copyMusic:(AWEAwemeBaseViewController *)rootVC {
+  1919→    NSURL *downloadableURL = [((AWEMusicModel *)rootVC.model.music).playURL bestURLtoDownload];
+  1920→    if (downloadableURL) {
+  1921→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1922→        pasteboard.string = [downloadableURL absoluteString];
+  1923→    } else {
+  1924→        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1925→    }
+  1926→}
+  1927→%new - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC {
+  1928→    NSURL *downloadableURL = [rootVC.model.video.playURL bestURLtoDownload];
+  1929→    if (downloadableURL) {
+  1930→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1931→        pasteboard.string = [downloadableURL absoluteString];
+  1932→    } else {
+  1933→        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1934→    }
+  1935→}
+  1936→%new - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC {
+  1937→    NSString *video_description = rootVC.model.music_songName;
+  1938→    if (video_description) {
+  1939→        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+  1940→        pasteboard.string = video_description;
+  1941→        PXScheduleClipboardClear();
+  1942→    } else {
+  1943→        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+  1944→    }
+  1945→}
+  1946→%new - (void)translateDecription:(AWEAwemeBaseViewController *)rootVC {
+  1947→    NSString *video_description = rootVC.model.music_songName;
+  1948→    PXTranslateText(video_description);
+  1949→}
+  1950→%new - (void) downloadButtonHandler:(UIButton *)sender {
+  1951→    AWEAwemeBaseViewController *rootVC = self.viewController;
+  1952→    if ([rootVC.interactionController isKindOfClass:%c(TTKFeedInteractionLegacyMainContainerElement)]) {
+  1953→
+  1954→     UIAction *action1 = [UIAction actionWithTitle:@"Download Video"
+  1955→                                            image:[UIImage systemImageNamed:@"film"]
+  1956→                                       identifier:nil
+  1957→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1958→                                            [self downloadVideo:rootVC];
+  1959→    }];
+  1960→    UIAction *action0 = [UIAction actionWithTitle:@"Download HD Video"
+  1961→                                            image:[UIImage systemImageNamed:@"film"]
+  1962→                                       identifier:nil
+  1963→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1964→                                            [self downloadHDVideo:rootVC];
+  1965→    }];
+  1966→    UIAction *action2 = [UIAction actionWithTitle:@"Download Music"
+  1967→                                            image:[UIImage systemImageNamed:@"music.note"]
+  1968→                                       identifier:nil
+  1969→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1970→                                            [self downloadMusic:rootVC];
+  1971→    }];
+  1972→    UIAction *action3 = [UIAction actionWithTitle:@"Copy Music link"
+  1973→                                            image:[UIImage systemImageNamed:@"link"]
+  1974→                                       identifier:nil
+  1975→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1976→                                            [self copyMusic:rootVC];
+  1977→    }];
+  1978→    UIAction *action4 = [UIAction actionWithTitle:@"Copy Video link"
+  1979→                                            image:[UIImage systemImageNamed:@"link"]
+  1980→                                       identifier:nil
+  1981→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1982→                                            [self copyVideo:rootVC];
+  1983→    }];
+  1984→    UIAction *action5 = [UIAction actionWithTitle:@"Copy Decription"
+  1985→                                            image:[UIImage systemImageNamed:@"note.text"]
+  1986→                                       identifier:nil
+  1987→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1988→                                            [self copyDecription:rootVC];
+  1989→    }];
+  1990→    UIAction *action6 = [UIAction actionWithTitle:@"Translate Description"
+  1991→                                            image:[UIImage systemImageNamed:@"globe"]
+  1992→                                       identifier:nil
+  1993→                                          handler:^(__kindof UIAction * _Nonnull action) {
+  1994→                                            [self translateDecription:rootVC];
+  1995→    }];
+  1996→    UIMenu *downloadMenu = [UIMenu menuWithTitle:@"Downloads Menu"
+  1997→                                        children:@[action1, action0,action2]];
+  1998→    UIMenu *copyMenu = [UIMenu menuWithTitle:@"Copy Menu"
+  1999→                                        children:[BHIManager translateDescription] ? @[action3, action4, action5, action6] : @[action3, action4, action5]];
+  2000→    UIMenu *mainMenu = [UIMenu menuWithTitle:@"" children:@[downloadMenu, copyMenu]];
+
+[showing lines 1-2000 of 2271; use offset=2001 with limit to continue reading]
