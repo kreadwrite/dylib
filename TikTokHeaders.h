@@ -189,6 +189,8 @@
 @property(nonatomic, weak, readwrite) id context;
 @property(nonatomic, copy, readwrite) NSString *sectionHeaderTitle;
 @property(nonatomic, copy, readwrite) NSString *sectionIdentifier;
+@property(nonatomic, copy, readwrite) NSArray *cellPlugins;
+- (void)pxInsertPXTokCellIfNeeded;
 @end
 
 @interface AWEBaseListViewModel: NSObject
@@ -432,3 +434,30 @@ static UIViewController * _Nonnull topMostController() {
     }
     return topController;
 }
+
+// ─── TIM (IM/ messaging) classes ───
+@interface TIMMessageManager: NSObject
+- (void)onRecvMessages:(NSArray *)messages;
+- (void)revokeMessage:(id)message completion:(id)completion;
+@end
+
+@interface TIMMessage: NSObject
+- (NSString *)msgID;
+- (NSString *)textContent;
+- (BOOL)addElem:(id)elem;
+- (void)sendMessage:(id)message succ:(id)succ fail:(id)fail;
+@end
+
+@interface TIMTextElem: NSObject
+@property(nonatomic, copy) NSString *text;
+@end
+
+@interface TIMConversationManager: NSObject
++ (instancetype)sharedInstance;
+- (NSArray *)getConversationList;
+@end
+
+@interface TIMConversation: NSObject
+- (NSNumber *)conversationType;
+- (void)sendMessage:(id)message succ:(id)succ fail:(id)fail;
+@end

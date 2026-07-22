@@ -2378,7 +2378,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 // При получении локального уведомления px_streak_reminder
 // находим последние чаты и отправляем streak-сообщение
 // ═══════════════════════════════════════════════════════════════
-%hook AppDelegate (PXStreak)
+%hook AppDelegate
 - (void)userNotificationCenter:(id)center didReceiveNotificationResponse:(id)response withCompletionHandler:(void (^)(void))handler {
     %orig;
     if (![BHIManager streakAutoRenewEnabled]) return;

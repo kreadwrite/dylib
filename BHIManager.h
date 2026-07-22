@@ -89,6 +89,10 @@
 + (NSString *)streakScheduledTime;
 + (NSString *)streakMessageText;
 
+// ─── Лента (доп.) ───
++ (BOOL)profileVideoCount;
++ (BOOL)disablePullToRefresh;
+
 // ─── Утилиты ───
 + (BOOL)isEmpty:(NSURL *)url;
 + (NSString *)getDownloadingPersent:(float)per;
