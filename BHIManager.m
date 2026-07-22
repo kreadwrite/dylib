@@ -95,6 +95,12 @@
 + (BOOL)videoUploadDate {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"video_upload_date"];
 }
++ (BOOL)profileVideoCount {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"profile_video_count"];
+}
++ (BOOL)disablePullToRefresh {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"disable_pull_to_refresh"];
+}
 + (NSDictionary *)selectedRegion {
     return [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"region"];
 }

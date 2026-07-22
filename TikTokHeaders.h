@@ -189,6 +189,7 @@
 @property(nonatomic, weak, readwrite) id context;
 @property(nonatomic, copy, readwrite) NSString *sectionHeaderTitle;
 @property(nonatomic, copy, readwrite) NSString *sectionIdentifier;
+@property(nonatomic, copy, readwrite) NSArray *cellPlugins;
 @end
 
 @interface AWEBaseListViewModel: NSObject
@@ -438,18 +439,24 @@ static UIViewController * _Nonnull topMostController() {
 @property(nonatomic, copy, readwrite) NSString *name;
 @end
 
-@interface TTKProfileBaseComponentModel : NSObject
-@property(nonatomic, copy) NSString *componentID;
-@property(nonatomic, copy) NSString *name;
-@end
-
 @interface TIMConversationManager : NSObject
 + (instancetype)sharedInstance;
 - (NSArray *)getConversationList;
 @end
 
+@interface TIMConversation : NSObject
+- (NSInteger)conversationType;
+- (void)sendMessage:(id)msg succ:(id)succBlock fail:(id)failBlock;
+@end
+
 @interface TIMTextElem : NSObject
 - (void)setText:(NSString *)text;
+@end
+
+// NSObject category for messaging selectors used with respondsToSelector checks
+@interface NSObject (PXTokMessaging)
+- (NSString *)msgID;
+- (NSString *)textContent;
 @end
 
 @interface TIMMessage : NSObject
