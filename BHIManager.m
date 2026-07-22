@@ -306,12 +306,4 @@
 + (BOOL)isRussian {
     return [[[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"] isEqualToString:@"ru"];
 }
-
-// ─── Новые методы v1.1 ───
-+ (BOOL)profileVideoCount {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_profile_video_count"];
-}
-+ (BOOL)disablePullToRefresh {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_disable_pull_refresh"];
-}
 @end
