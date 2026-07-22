@@ -5,6 +5,7 @@
 #import <string.h>
 #import <dlfcn.h>
 #import <sys/mman.h>
+#import <unistd.h>
 #import <libkern/OSCacheControl.h>
 
 // MSHookMessageEx: Replace an ObjC method implementation
@@ -42,7 +43,7 @@ void MSHookMessageEx(Class _class, SEL sel, IMP imp, IMP *result) {
 void MSHookFunction(void *symbol, void *replace, void **result) {
     if (symbol == NULL || replace == NULL) return;
 
-    size_t pageSize = sysconf(_SC_PAGESIZE);
+    size_t pageSize = 16384;  // Apple A7+ uses 16KB pages
 
     // Allocate executable pages for the original-function trampoline
     void *origPage = mmap(NULL, pageSize,
