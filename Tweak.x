@@ -1,5 +1,3 @@
-%config(handler=fishhook)
-
 #import "TikTokHeaders.h"
 #import "Settings/PXAssets.h"
 #import "Settings/PXMenuTabBarController.h"
