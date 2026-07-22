@@ -12,8 +12,6 @@
 
 @interface AppDelegate : NSObject <UIApplicationDelegate>
 - (void)pxScanForTabBarElementsIn:(UIView *)root;
-- (void)pxSendStreakMessages;
-- (void)pxCheckAndRescheduleStreak;
 @end
 
 @interface TTKCommentPanelViewController: UIViewController
@@ -191,10 +189,6 @@
 @property(nonatomic, weak, readwrite) id context;
 @property(nonatomic, copy, readwrite) NSString *sectionHeaderTitle;
 @property(nonatomic, copy, readwrite) NSString *sectionIdentifier;
-@property(nonatomic, copy, readwrite) NSArray *cellPlugins;
-- (void)viewDidLoad;
-- (void)viewWillAppear:(BOOL)animated;
-- (void)pxInsertPXTokCellIfNeeded;
 @end
 
 @interface AWEBaseListViewModel: NSObject
@@ -396,7 +390,6 @@
 @interface AWENewFeedTableViewController : UIViewController
 @property(nonatomic, weak, readwrite) UIViewController *tabContainerController;
 @property (nonatomic, assign, readonly) AWEAwemeModel *currentAweme;
-- (BOOL)disablePullToRefreshGestureRecognizer;
 - (void)scrollToNextVideo;
 - (void)pause;
 - (void)stop;
@@ -441,20 +434,18 @@ static UIViewController * _Nonnull topMostController() {
 }
 
 // ─── PXTok 1.1 дополнения ───
+@interface AWESettingItemModel (PXTok)
+@property(nonatomic, copy, readwrite) NSString *name;
+@end
+
+@interface TTKProfileBaseComponentModel : NSObject
+@property(nonatomic, copy) NSString *componentID;
+@property(nonatomic, copy) NSString *name;
+@end
 
 @interface TIMConversationManager : NSObject
 + (instancetype)sharedInstance;
 - (NSArray *)getConversationList;
-@end
-
-@interface TIMConversation : NSObject
-@property(nonatomic, assign, readwrite) NSInteger conversationType;
-- (void)sendMessage:(id)message succ:(id)succBlock fail:(id)failBlock;
-@end
-
-@interface TIMMessageElem : NSObject
-@property(nonatomic, copy, readwrite) NSString *msgID;
-@property(nonatomic, copy, readwrite) NSString *textContent;
 @end
 
 @interface TIMTextElem : NSObject
@@ -471,12 +462,4 @@ static UIViewController * _Nonnull topMostController() {
 
 @interface AWEFeedCellViewController (PXPublishDate)
 @property (nonatomic, strong, readwrite) AWEAwemeModel *model;
-@end
-
-@interface UITableViewCell (PXIMDeletedCell)
-- (void)pxCheckDeletedStateForMsgID:(NSString *)msgID inView:(UIView *)cell;
-@end
-
-@interface UIGestureRecognizer (PXTokAction)
-@property(nonatomic, assign, readwrite) SEL action;
 @end

@@ -26,11 +26,8 @@ jobs:
 
       - name: Build CydiaSubstrate shim
         run: |
-          # Compile a self-contained CydiaSubstrate.dylib shim for Sideloadly users
-          # This provides MSHookMessageEx and MSHookFunction without needing real CydiaSubstrate
           SDK="$HOME/theos/sdks/iPhoneOS16.5.sdk"
-          
-          # Compile for arm64
+
           clang -arch arm64 \
             -isysroot "$SDK" \
             -target arm64-apple-ios14.0 \
@@ -43,8 +40,7 @@ jobs:
             -framework UIKit \
             -lobjc \
             -install_name /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate
-          
-          # Compile for arm64e
+
           clang -arch arm64e \
             -isysroot "$SDK" \
             -target arm64e-apple-ios14.0 \
@@ -57,14 +53,12 @@ jobs:
             -framework UIKit \
             -lobjc \
             -install_name /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate
-          
-          # Create universal binary
+
           lipo -create /tmp/CydiaSubstrate_arm64.dylib /tmp/CydiaSubstrate_arm64e.dylib \
             -output CydiaSubstrate.dylib
-          
-          # Sign with ldid
+
           ldid -S CydiaSubstrate.dylib
-          
+
           echo "CydiaSubstrate shim built:"
           ls -la CydiaSubstrate.dylib
           file CydiaSubstrate.dylib

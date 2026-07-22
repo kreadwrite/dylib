@@ -30,7 +30,7 @@
     switchRow.backgroundColor = [UIColor secondarySystemGroupedBackgroundColor];
     switchRow.layer.cornerRadius = 12;
     switchRow.translatesAutoresizingMaskIntoConstraints = NO;
-    [NSLayoutConstraint activateConstraints:@[ [[switchRow heightAnchor] constraintEqualToConstant:52] ]];
+    [switchRow heightAnchor].constraintEqualToConstant(52).active = YES;
     UILabel *lbl = [[UILabel alloc] init];
     lbl.text = ru ? @"Кастомная обводка историй" : @"Custom Story Border Color";
     lbl.font = [UIFont systemFontOfSize:16];
@@ -57,7 +57,7 @@
     self.colorPreviewButton.layer.cornerRadius = 24;
     self.colorPreviewButton.layer.borderWidth = 2;
     self.colorPreviewButton.layer.borderColor = [UIColor separatorColor].CGColor;
-    [NSLayoutConstraint activateConstraints:@[ [[self.colorPreviewButton heightAnchor] constraintEqualToConstant:48] ]];
+    [self.colorPreviewButton heightAnchor].constraintEqualToConstant(48).active = YES;
     [self.colorPreviewButton addTarget:self action:@selector(pickColor) forControlEvents:UIControlEventTouchUpInside];
     [stack addArrangedSubview:self.colorPreviewButton];
 
@@ -75,7 +75,7 @@
         UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
         btn.backgroundColor = c;
         btn.layer.cornerRadius = 20;
-        [NSLayoutConstraint activateConstraints:@[ [[btn heightAnchor] constraintEqualToConstant:40] ]];
+        [btn heightAnchor].constraintEqualToConstant(40).active = YES;
         btn.tag = [presets indexOfObject:c];
         [btn addTarget:self action:@selector(presetTapped:) forControlEvents:UIControlEventTouchUpInside];
         [colorRow addArrangedSubview:btn];

@@ -4,8 +4,6 @@ packages/
 .DS_Store
 upload/
 tool-results/
-download/
-scripts/
-skills/
-.env
+
+*.deb
 worklog.md

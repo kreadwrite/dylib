@@ -262,6 +262,7 @@
     NSNumber *number = [NSNumber numberWithFloat:per];
     return [numberFormatter stringFromNumber:number];
 }
+@end
 // ─── Режим призрака (новые) ───
 + (BOOL)ghostNoStoryMark {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_no_story_mark"];
@@ -306,4 +307,3 @@
 + (BOOL)isRussian {
     return [[[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"] isEqualToString:@"ru"];
 }
-@end

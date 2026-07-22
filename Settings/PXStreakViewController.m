@@ -6,6 +6,7 @@
 
 #import "PXStreakViewController.h"
 #import "../BHIManager.h"
+#import <UserNotifications/UserNotifications.h>
 
 @interface PXStreakViewController ()
 @property (nonatomic, strong) UIDatePicker *timePicker;
