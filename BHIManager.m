@@ -263,3 +263,47 @@
     return [numberFormatter stringFromNumber:number];
 }
 @end
+// ─── Режим призрака (новые) ───
++ (BOOL)ghostNoStoryMark {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_no_story_mark"];
+}
++ (BOOL)ghostNoVideoMark {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_no_video_mark"];
+}
++ (BOOL)ghostHideOnline {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_hide_online"];
+}
++ (BOOL)ghostHideTyping {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_hide_typing"];
+}
++ (BOOL)ghostStealthProfile {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_stealth_profile"];
+}
+
+// ─── Удалённые сообщения ───
++ (BOOL)deletedMessagesEnabled {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_deleted_messages_enabled"];
+}
++ (float)deletedMessageOpacity {
+    NSNumber *v = [[NSUserDefaults standardUserDefaults] objectForKey:@"px_deleted_msg_opacity"];
+    return v ? [v floatValue] : 0.4f;
+}
++ (BOOL)deletedMessageSameStyle {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_deleted_msg_same_style"];
+}
+
+// ─── Автопродление огонька ───
++ (BOOL)streakAutoRenewEnabled {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_streak_auto_renew"];
+}
++ (NSString *)streakScheduledTime {
+    return [[NSUserDefaults standardUserDefaults] stringForKey:@"px_streak_time"] ?: @"20:00";
+}
++ (NSString *)streakMessageText {
+    return [[NSUserDefaults standardUserDefaults] stringForKey:@"px_streak_message"] ?: @"🔥";
+}
+
+// ─── Утилита ───
++ (BOOL)isRussian {
+    return [[[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"] isEqualToString:@"ru"];
+}

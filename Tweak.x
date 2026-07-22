@@ -1,10 +1,12 @@
 #import "TikTokHeaders.h"
 #import "Settings/PXAssets.h"
+#import "Settings/PXMenuTabBarController.h"
+#import <UserNotifications/UserNotifications.h>
 
 NSArray *jailbreakPaths;
 
 static void showConfirmation(void (^okHandler)(void)) {
-  [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"Are you sure?" image:nil actionButtonTitle:@"Yes" cancelButtonTitle:@"No" actionBlock:^{
+  [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"Вы уверены?" : @"Are you sure?") image:nil actionButtonTitle:([BHIManager isRussian] ? @"Да" : @"Yes") cancelButtonTitle:([BHIManager isRussian] ? @"Нет" : @"No") actionBlock:^{
     okHandler();
   } cancelBlock:nil];
 }
@@ -120,8 +122,8 @@ static void PXScheduleClipboardClear(void) {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"flex_enebaled"]) {
         [[%c(FLEXManager) performSelector:@selector(sharedManager)] performSelector:@selector(showExplorer)];
     }
-    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"BHTikTokFirstRun"]) {
-        [[NSUserDefaults standardUserDefaults] setValue:@"BHTikTokFirstRun" forKey:@"BHTikTokFirstRun"];
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"PXTokFirstRun"]) {
+        [[NSUserDefaults standardUserDefaults] setValue:@"PXTokFirstRun" forKey:@"PXTokFirstRun"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"hide_ads"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"download_button"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"remove_elements_button"];
@@ -496,8 +498,9 @@ static BOOL isAuthenticationShowed = FALSE;
 %hook TTKSettingsBaseCellPlugin
 - (void)didSelectItemAtIndex:(NSInteger)index {
     if ([self.itemModel.identifier isEqualToString:@"pxtok_settings"]) {
-        UINavigationController *PXTokSettings = [[UINavigationController alloc] initWithRootViewController:[[ViewController alloc] init]];
-        [topMostController() presentViewController:PXTokSettings animated:true completion:nil];
+        PXMenuTabBarController *menu = [[PXMenuTabBarController alloc] init];
+        menu.modalPresentationStyle = UIModalPresentationFormSheet;
+        [topMostController() presentViewController:menu animated:YES completion:nil];
     } else {
         return %orig;
     }
@@ -505,21 +508,36 @@ static BOOL isAuthenticationShowed = FALSE;
 %end
 
 %hook AWESettingsNormalSectionViewModel
+// viewDidLoad может вызываться повторно при возврате на экран — поэтому
+// вставляем только если PXTok-ячейки ещё нет в списке моделей.
 - (void)viewDidLoad {
     %orig;
-    if ([self.sectionIdentifier isEqualToString:@"account"]) {
-        TTKSettingsBaseCellPlugin *PXTokSettingsPluginCell = [[%c(TTKSettingsBaseCellPlugin) alloc] initWithPluginContext:self.context];
-
-        AWESettingItemModel *PXTokSettingsItemModel = [[%c(AWESettingItemModel) alloc] initWithIdentifier:@"pxtok_settings"];
-        [PXTokSettingsItemModel setTitle:@"PXTok"];
-        [PXTokSettingsItemModel setDetail:@"PXTok"];
-        [PXTokSettingsItemModel setIconImage:[PXAssets pxIcon]];
-        [PXTokSettingsItemModel setType:99];
-
-        [PXTokSettingsPluginCell setItemModel:PXTokSettingsItemModel];
-
-        [self insertModel:PXTokSettingsPluginCell atIndex:0 animated:true];
+    [self pxInsertPXTokCellIfNeeded];
+}
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    [self pxInsertPXTokCellIfNeeded];
+}
+%new - (void)pxInsertPXTokCellIfNeeded {
+    if (![self.sectionIdentifier isEqualToString:@"account"]) return;
+    // Проверяем, есть ли уже PXTok-модель
+    for (id model in self.cellPlugins) {
+        if ([model respondsToSelector:@selector(itemModel)]) {
+            id item = [model itemModel];
+            if ([item respondsToSelector:@selector(identifier)] &&
+                [[item identifier] isEqualToString:@"pxtok_settings"]) {
+                return; // уже есть — не дублируем
+            }
+        }
     }
+    TTKSettingsBaseCellPlugin *cell = [[%c(TTKSettingsBaseCellPlugin) alloc] initWithPluginContext:self.context];
+    AWESettingItemModel *item = [[%c(AWESettingItemModel) alloc] initWithIdentifier:@"pxtok_settings"];
+    [item setTitle:@"PXTok"];
+    [item setDetail:@"PXTok"];
+    [item setIconImage:[PXAssets pxIcon]];
+    [item setType:99];
+    [cell setItemModel:item];
+    [self insertModel:cell atIndex:0 animated:NO];
 }
 %end
 
@@ -1422,8 +1440,9 @@ static BOOL _pxDislikeCommentBypass = NO;
     if (![BHIManager liveActionEnabled] || [BHIManager selectedLiveAction] == 0) {
         %orig;
     } else if ([BHIManager liveActionEnabled] && [[BHIManager selectedLiveAction] intValue] == 1) {
-        UINavigationController *PXTokSettings = [[UINavigationController alloc] initWithRootViewController:[[ViewController alloc] init]];
-        [topMostController() presentViewController:PXTokSettings animated:true completion:nil];
+        PXMenuTabBarController *menu = [[PXMenuTabBarController alloc] init];
+        menu.modalPresentationStyle = UIModalPresentationFormSheet;
+        [topMostController() presentViewController:menu animated:YES completion:nil];
     } 
     else {
         %orig;
@@ -1568,7 +1587,7 @@ static BOOL _pxDislikeCommentBypass = NO;
         UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
         pasteboard.string = [downloadableURL absoluteString];
     } else {
-        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"Could Not Copy Music." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"Не удалось скопировать музыку" : @"Could Not Copy Music.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
     }
 }
 %new - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC {
@@ -1577,7 +1596,7 @@ static BOOL _pxDislikeCommentBypass = NO;
         UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
         pasteboard.string = [downloadableURL absoluteString];
     } else {
-        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
     }
 }
 %new - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC {
@@ -1587,7 +1606,7 @@ static BOOL _pxDislikeCommentBypass = NO;
         pasteboard.string = video_description;
         PXScheduleClipboardClear();
     } else {
-        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
     }
 }
 %new - (void)translateDecription:(AWEAwemeBaseViewController *)rootVC {
@@ -1951,7 +1970,7 @@ static BOOL _pxDislikeCommentBypass = NO;
         UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
         pasteboard.string = [downloadableURL absoluteString];
     } else {
-        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
     }
 }
 %new - (void)copyVideo:(AWEAwemeBaseViewController *)rootVC {
@@ -1960,7 +1979,7 @@ static BOOL _pxDislikeCommentBypass = NO;
         UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
         pasteboard.string = [downloadableURL absoluteString];
     } else {
-        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
     }
 }
 %new - (void)copyDecription:(AWEAwemeBaseViewController *)rootVC {
@@ -1970,7 +1989,7 @@ static BOOL _pxDislikeCommentBypass = NO;
         pasteboard.string = video_description;
         PXScheduleClipboardClear();
     } else {
-        [%c(AWEUIAlertView) showAlertWithTitle:@"BHTikTok, Hi" description:@"The video dosen't have music to download." image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
+        [%c(AWEUIAlertView) showAlertWithTitle:@"PXTok" description:([BHIManager isRussian] ? @"В видео нет музыки для скачивания" : @"This video has no music to download.") image:nil actionButtonTitle:@"OK" cancelButtonTitle:nil actionBlock:nil cancelBlock:nil];
     }
 }
 %new - (void)translateDecription:(AWEAwemeBaseViewController *)rootVC {
@@ -2261,6 +2280,142 @@ static BOOL _pxDislikeCommentBypass = NO;
 - (id)setMode {
         return (id (^)(id)) ^{
         };
+}
+%end
+
+
+// ═══════════════════════════════════════════════════════════════
+// GHOST: скрытие онлайн-статуса
+// ═══════════════════════════════════════════════════════════════
+%hook TIMConversationOnlineStatusImpl
+- (void)reportUserOnlineStatus:(id)status completion:(id)completion {
+    if ([BHIManager ghostHideOnline]) return;
+    %orig;
+}
+%end
+
+%hook AWEIMTypingManager
+- (void)startTypingInConversation:(id)conv {
+    if ([BHIManager ghostHideTyping]) return;
+    %orig;
+}
+- (void)stopTypingInConversation:(id)conv {
+    if ([BHIManager ghostHideTyping]) return;
+    %orig;
+}
+%end
+
+// ═══════════════════════════════════════════════════════════════
+// GHOST: скрытие просмотра историй и видео
+// ═══════════════════════════════════════════════════════════════
+%hook AWEStoryInteractionController
+- (void)reportStoryView:(id)arg1 {
+    if ([BHIManager ghostNoStoryMark]) return;
+    %orig;
+}
+%end
+
+%hook AWEFeedVideoPlayStatisticsManager
+- (void)reportVideoPlayWithModel:(id)model {
+    if ([BHIManager ghostNoVideoMark]) return;
+    %orig;
+}
+%end
+
+// ═══════════════════════════════════════════════════════════════
+// GHOST: скрытый просмотр профиля
+// ═══════════════════════════════════════════════════════════════
+%hook AWEUserDetailInteractiveManager
+- (void)reportProfileView:(id)profile {
+    if ([BHIManager ghostStealthProfile]) return;
+    %orig;
+}
+%end
+
+// ═══════════════════════════════════════════════════════════════
+// УДАЛЁННЫЕ СООБЩЕНИЯ — кэшируем перед удалением
+// ═══════════════════════════════════════════════════════════════
+
+// Хук на входящие сообщения — сохраняем копию до того как TikTok удалит
+%hook TIMMessageManager
+- (void)onRecvMessages:(NSArray *)messages {
+    %orig;
+    if (![BHIManager deletedMessagesEnabled]) return;
+    // Кэшируем входящие сообщения
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        NSMutableDictionary *cache = [[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"px_deleted_messages_cache"] mutableCopy] ?: [NSMutableDictionary dictionary];
+        for (id msg in messages) {
+            NSString *msgId = nil;
+            NSString *content = nil;
+            if ([msg respondsToSelector:@selector(msgID)]) msgId = [msg msgID];
+            if ([msg respondsToSelector:@selector(textContent)]) content = [msg textContent];
+            if (msgId && content) cache[msgId] = @{@"text": content, @"ts": @([[NSDate date] timeIntervalSince1970])};
+        }
+        [[NSUserDefaults standardUserDefaults] setObject:cache forKey:@"px_deleted_messages_cache"];
+    });
+}
+
+// Хук на удаление — помечаем сообщение как удалённое
+- (void)revokeMessage:(id)message completion:(id)completion {
+    if ([BHIManager deletedMessagesEnabled]) {
+        NSString *msgId = [message respondsToSelector:@selector(msgID)] ? [message msgID] : nil;
+        if (msgId) {
+            NSMutableDictionary *cache = [[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"px_deleted_messages_cache"] mutableCopy] ?: [NSMutableDictionary dictionary];
+            if (cache[msgId]) {
+                NSMutableDictionary *entry = [cache[msgId] mutableCopy];
+                entry[@"deleted"] = @YES;
+                cache[msgId] = entry;
+                [[NSUserDefaults standardUserDefaults] setObject:cache forKey:@"px_deleted_messages_cache"];
+            }
+        }
+    }
+    %orig;
+}
+%end
+
+// ═══════════════════════════════════════════════════════════════
+// ОГОНЁК — хук на отправку, если пришло уведомление о времени
+// При получении локального уведомления px_streak_reminder
+// находим последние чаты и отправляем streak-сообщение
+// ═══════════════════════════════════════════════════════════════
+%hook AppDelegate (PXStreak)
+- (void)userNotificationCenter:(id)center didReceiveNotificationResponse:(id)response withCompletionHandler:(void (^)(void))handler {
+    %orig;
+    if (![BHIManager streakAutoRenewEnabled]) return;
+    UNNotificationResponse *r = response;
+    if (![r.notification.request.identifier isEqualToString:@"px_streak_reminder"]) return;
+
+    NSString *msg = [BHIManager streakMessageText];
+    if (msg.length == 0) msg = @"🔥";
+
+    // Получаем список конверсаций через TIMConversationManager и отправляем сообщение
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        id convMgr = [%c(TIMConversationManager) performSelector:@selector(sharedInstance)];
+        NSArray *convList = [convMgr respondsToSelector:@selector(getConversationList)] ? [convMgr getConversationList] : nil;
+        for (id conv in convList) {
+            if ([conv respondsToSelector:@selector(conversationType)]) {
+                // Отправляем только в C2C (личные) чаты
+                NSInteger type = [[conv conversationType] integerValue];
+                if (type == 1) { // C2C
+                    id textMsg = [%c(TIMTextElem) new];
+                    if ([textMsg respondsToSelector:@selector(setText:)]) [textMsg setText:msg];
+                    id message = [%c(TIMMessage) new];
+                    if ([message respondsToSelector:@selector(addElem:)]) [message addElem:textMsg];
+                    [conv sendMessage:message succ:nil fail:nil];
+                }
+            }
+        }
+    });
+}
+%end
+
+// Замена всех упоминаний BHTikTok++ в UI на PXTok (строки в алертах)
+%hook NSString
+- (BOOL)isEqualToString:(NSString *)aString {
+    if ([aString isEqualToString:@"BHTikTok++ Settings"]) {
+        return %orig(@"PXTok Settings");
+    }
+    return %orig;
 }
 %end
 
