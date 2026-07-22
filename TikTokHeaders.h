@@ -12,6 +12,8 @@
 
 @interface AppDelegate : NSObject <UIApplicationDelegate>
 - (void)pxScanForTabBarElementsIn:(UIView *)root;
+- (void)pxSendStreakMessages;
+- (void)pxCheckAndRescheduleStreak;
 @end
 
 @interface TTKCommentPanelViewController: UIViewController
@@ -469,6 +471,10 @@ static UIViewController * _Nonnull topMostController() {
 
 @interface AWEFeedCellViewController (PXPublishDate)
 @property (nonatomic, strong, readwrite) AWEAwemeModel *model;
+@end
+
+@interface UITableViewCell (PXIMDeletedCell)
+- (void)pxCheckDeletedStateForMsgID:(NSString *)msgID inView:(UIView *)cell;
 @end
 
 @interface UIGestureRecognizer (PXTokAction)

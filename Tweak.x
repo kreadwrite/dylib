@@ -257,7 +257,7 @@ static BOOL isAuthenticationShowed = FALSE;
         NSArray *convList = [convMgr respondsToSelector:@selector(getConversationList)] ? [convMgr getConversationList] : nil;
         for (id conv in convList) {
             if ([conv respondsToSelector:@selector(conversationType)]) {
-                NSInteger type = [[conv conversationType] integerValue];
+                NSInteger type = [conv conversationType];
                 if (type == 1) { // C2C
                     id textMsg = [%c(TIMTextElem) new];
                     if ([textMsg respondsToSelector:@selector(setText:)]) [textMsg setText:msg];
@@ -305,13 +305,13 @@ static BOOL isAuthenticationShowed = FALSE;
     if (!convMgr) return;
     NSArray *convList = [convMgr respondsToSelector:@selector(getConversationList)] ? [convMgr getConversationList] : nil;
     for (id conv in convList) {
-        NSInteger type = [[conv conversationType] integerValue];
+        NSInteger type = [conv conversationType];
         if (type == 1) { // C2C only
             id textElem = [%c(TIMTextElem) new];
             [textElem performSelector:@selector(setText:) withObject:msg];
             id message = [%c(TIMMessage) new];
             [message performSelector:@selector(addElem:) withObject:textElem];
-            [conv performSelector:@selector(sendMessage:succ:fail:) withObject:message withObject:nil withObject:nil];
+            [conv sendMessage:message succ:nil fail:nil];
         }
     }
     [[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"px_streak_last_sent"];
