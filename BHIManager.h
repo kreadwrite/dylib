@@ -25,6 +25,8 @@
 + (BOOL)profileCopy;
 + (BOOL)videoLikeCount;
 + (BOOL)videoUploadDate;
++ (BOOL)profileVideoCount;
++ (BOOL)disablePullToRefresh;
 
 // ─── Подтверждения ───
 + (BOOL)likeConfirmation;
