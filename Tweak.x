@@ -992,9 +992,35 @@ static BOOL isAuthenticationShowed = FALSE;
 }
 %end
 
-%hook AWEAwemeModel // no ads, show porgress bar
-- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {    id orig = %orig;    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;    if (!orig) return orig;    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"px_duration_filter_enabled"]) {        double dur = [[(AWEAwemeModel *)orig video].duration doubleValue] / 1000.0;        double minD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_min"] ?: 15;        double maxD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_max"] ?: 3600;        if (dur > 0 && (dur < minD || dur > maxD)) return nil;    }    return orig;}
-- (id)init {    id orig = %orig;    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;    if (!orig) return orig;    NSArray *blacklist = [[NSUserDefaults standardUserDefaults] arrayForKey:@"px_word_blacklist"];    if (blacklist.count) {        NSString *desc = [(AWEAwemeModel *)orig valueForKeyPath:@"descriptionString"] ?:                         [(AWEAwemeModel *)orig valueForKeyPath:@"desc"] ?:                         [(AWEAwemeModel *)orig valueForKeyPath:@"videoDescription"] ?: @"";        NSString *lower = desc.lowercaseString;        for (NSString *word in blacklist) {            if ([lower containsString:word.lowercaseString]) return nil;        }    }    return orig;}
+%hook AWEAwemeModel // no ads, show porgress bar, duration filter, word blacklist
+- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {
+    id orig = %orig;
+    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;
+    if (!orig) return orig;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"px_duration_filter_enabled"]) {
+        double dur = [[(AWEAwemeModel *)orig video].duration doubleValue] / 1000.0;
+        double minD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_min"] ?: 15;
+        double maxD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_max"] ?: 3600;
+        if (dur > 0 && (dur < minD || dur > maxD)) return nil;
+    }
+    return orig;
+}
+- (id)init {
+    id orig = %orig;
+    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;
+    if (!orig) return orig;
+    NSArray *blacklist = [[NSUserDefaults standardUserDefaults] arrayForKey:@"px_word_blacklist"];
+    if (blacklist.count) {
+        NSString *desc = [(AWEAwemeModel *)orig valueForKeyPath:@"descriptionString"] ?:
+                         [(AWEAwemeModel *)orig valueForKeyPath:@"desc"] ?:
+                         [(AWEAwemeModel *)orig valueForKeyPath:@"videoDescription"] ?: @"";
+        NSString *lower = desc.lowercaseString;
+        for (NSString *word in blacklist) {
+            if ([lower containsString:word.lowercaseString]) return nil;
+        }
+    }
+    return orig;
+}
 
 - (BOOL)progressBarDraggable {
     return [BHIManager progressBar] || %orig;
