@@ -94,7 +94,7 @@
         pct.textColor = [UIColor secondaryLabelColor];
         pct.translatesAutoresizingMaskIntoConstraints = NO;
         pct.textAlignment = NSTextAlignmentRight;
-        pct.widthAnchor.constraintEqualToConstant(44).active = YES;
+        [NSLayoutConstraint activateConstraints:@[ [pct.widthAnchor constraintEqualToConstant:44] ]];
         self.opacityLabel = pct;
 
         [cell.contentView addSubview:title];
