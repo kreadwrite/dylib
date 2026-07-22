@@ -35,9 +35,7 @@
 + (BOOL)showUsername {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"show_username"];
 }
-+ (BOOL)disablePullToRefresh {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"pull_to_refresh"];
-}
+// disablePullToRefresh defined below at line 101
 + (BOOL)disableUnsensitive {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"disable_unsensitive"];
 }
@@ -68,9 +66,7 @@
 + (BOOL)profileCopy {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"copy_profile_information"];
 }
-+ (BOOL)profileVideoCount {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"uploaded_videos"];
-}
+// profileVideoCount defined below at line 98
 + (BOOL)alwaysOpenSafari {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"openInBrowser"];
 }
@@ -268,7 +264,6 @@
     NSNumber *number = [NSNumber numberWithFloat:per];
     return [numberFormatter stringFromNumber:number];
 }
-@end
 // ─── Режим призрака (новые) ───
 + (BOOL)ghostNoStoryMark {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_no_story_mark"];
@@ -313,3 +308,4 @@
 + (BOOL)isRussian {
     return [[[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"] isEqualToString:@"ru"];
 }
+@end

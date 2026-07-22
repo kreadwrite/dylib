@@ -1453,7 +1453,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 %property (nonatomic, retain) UIProgressView *progressView;
 - (void)configWithModel:(id)model {
     %orig;
-    self.elementsHidden = false;
+    self.elementsHidden = NO;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -1463,7 +1463,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 }
 - (void)configureWithModel:(id)model {
     %orig;
-    self.elementsHidden = false;
+    self.elementsHidden = NO;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -1810,12 +1810,12 @@ static BOOL _pxDislikeCommentBypass = NO;
     if ([rootVC.interactionController isKindOfClass:%c(TTKFeedInteractionLegacyMainContainerElement)]) {
         TTKFeedInteractionLegacyMainContainerElement *interactionController = rootVC.interactionController;
         if (self.elementsHidden) {
-            self.elementsHidden = false;
-            [interactionController hideAllElements:false exceptArray:nil];
+            self.elementsHidden = NO;
+            [interactionController hideAllElements:NO exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
         } else {
-            self.elementsHidden = true;
-            [interactionController hideAllElements:true exceptArray:nil];
+            self.elementsHidden = YES;
+            [interactionController hideAllElements:YES exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
         }
     }
@@ -1877,7 +1877,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 %property (nonatomic, retain) NSString *fileextension;
 - (void)configWithModel:(id)model {
     %orig;
-    self.elementsHidden = false;
+    self.elementsHidden = NO;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -1887,7 +1887,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 }
 - (void)configureWithModel:(id)model {
     %orig;
-    self.elementsHidden = false;
+    self.elementsHidden = NO;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -2067,12 +2067,12 @@ static BOOL _pxDislikeCommentBypass = NO;
     if ([rootVC.interactionController isKindOfClass:%c(TTKFeedInteractionLegacyMainContainerElement)]) {
         TTKFeedInteractionLegacyMainContainerElement *interactionController = rootVC.interactionController;
         if (self.elementsHidden) {
-            self.elementsHidden = false;
-            [interactionController hideAllElements:false exceptArray:nil];
+            self.elementsHidden = NO;
+            [interactionController hideAllElements:NO exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
         } else {
-            self.elementsHidden = true;
-            [interactionController hideAllElements:true exceptArray:nil];
+            self.elementsHidden = YES;
+            [interactionController hideAllElements:YES exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
         }
     }
@@ -2661,7 +2661,7 @@ static BOOL _pxDislikeCommentBypass = NO;
     // Тап на корзину — предпросмотр
     NSString *text = entry[@"text"] ?: @"";
     UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(pxPreviewDeletedMessage:)];
-    tap.accessibilityLabel = text;
+    [(id)tap setAccessibilityLabel:text];
     [trashIcon addGestureRecognizer:tap];
 
     [NSLayoutConstraint activateConstraints:@[
@@ -2670,7 +2670,7 @@ static BOOL _pxDislikeCommentBypass = NO;
     ]];
 }
 %new - (void)pxPreviewDeletedMessage:(UITapGestureRecognizer *)gr {
-    NSString *text = gr.accessibilityLabel ?: @"";
+    NSString *text = [(id)gr accessibilityLabel] ?: @"";
     BOOL ru = [BHIManager isRussian];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:(ru?@"Удалённое сообщение":@"Deleted Message") message:text preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
