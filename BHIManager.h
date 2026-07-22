@@ -26,8 +26,6 @@
 + (BOOL)videoLikeCount;
 + (BOOL)videoUploadDate;
 + (BOOL)profileVideoCount;
-
-// ─── Лента (доп.) ───
 + (BOOL)disablePullToRefresh;
 
 // ─── Подтверждения ───

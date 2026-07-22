@@ -189,7 +189,6 @@
 @property(nonatomic, weak, readwrite) id context;
 @property(nonatomic, copy, readwrite) NSString *sectionHeaderTitle;
 @property(nonatomic, copy, readwrite) NSString *sectionIdentifier;
-@property(nonatomic, copy, readwrite) NSArray *cellPlugins;
 @end
 
 @interface AWEBaseListViewModel: NSObject
@@ -434,9 +433,14 @@ static UIViewController * _Nonnull topMostController() {
     return topController;
 }
 
-// ─── PXTok 1.1 дополнения ───
+// ─── PXTok 1.2 дополнения ───
 @interface AWESettingItemModel (PXTok)
 @property(nonatomic, copy, readwrite) NSString *name;
+@end
+
+@interface TTKProfileBaseComponentModel : NSObject
+@property(nonatomic, copy) NSString *componentID;
+@property(nonatomic, copy) NSString *name;
 @end
 
 @interface TIMConversationManager : NSObject
@@ -444,19 +448,8 @@ static UIViewController * _Nonnull topMostController() {
 - (NSArray *)getConversationList;
 @end
 
-@interface TIMConversation : NSObject
-- (NSInteger)conversationType;
-- (void)sendMessage:(id)msg succ:(id)succBlock fail:(id)failBlock;
-@end
-
 @interface TIMTextElem : NSObject
 - (void)setText:(NSString *)text;
-@end
-
-// NSObject category for messaging selectors used with respondsToSelector checks
-@interface NSObject (PXTokMessaging)
-- (NSString *)msgID;
-- (NSString *)textContent;
 @end
 
 @interface TIMMessage : NSObject
@@ -465,6 +458,20 @@ static UIViewController * _Nonnull topMostController() {
 
 @interface AWETextInputController : NSObject
 - (NSInteger)textMaximumLength;
+@end
+
+@interface TIMConversation : NSObject
+@property(nonatomic, assign) NSInteger conversationType;
+- (NSInteger)conversationType;
+- (void)sendMessage:(id)msg succ:(id)succBlock fail:(id)failBlock;
+@end
+
+@interface TIMMessageCell : UITableViewCell
+@end
+
+@interface NSObject (PXTokMessaging)
+- (NSString *)msgID;
+- (NSString *)textContent;
 @end
 
 @interface AWEFeedCellViewController (PXPublishDate)

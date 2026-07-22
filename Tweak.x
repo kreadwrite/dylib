@@ -42,24 +42,6 @@ static void PXScheduleClipboardClear(void) {
 
 // Precise badge hook using TTKBadgeImpl confirmed in MusicallyCore binary v46.0.0.
 // This intercepts the central badge-count update method that drives all tab-bar red dots.
-// Forward declarations for %new methods (needed by ARC compiler)
-@interface AWESettingsNormalSectionViewModel (PXTok)
-- (void)pxInsertPXTokCellIfNeeded;
-@end
-
-@interface AppDelegate (PXTok)
-- (void)pxSendStreakMessages;
-- (void)pxCheckAndRescheduleStreak;
-@end
-
-@interface BDImageView (PXTok)
-- (void)addHandleLongPress;
-@end
-
-@interface UITableViewCell (PXTok)
-- (void)pxCheckDeletedStateForMsgID:(NSString *)msgID inView:(UIView *)view;
-@end
-
 %hook TTKBadgeImpl
 - (void)setBadgeCount:(NSInteger)count {
     if ([BHIManager hideNotificationBadges]) {
@@ -135,9 +117,9 @@ static void PXScheduleClipboardClear(void) {
 }
 %end
 
-%hook AppDelegate
+%hook AppDelegate (PXMain)
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
-    %orig;
+    BOOL result = %orig;
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"flex_enebaled"]) {
         [[%c(FLEXManager) performSelector:@selector(sharedManager)] performSelector:@selector(showExplorer)];
     }
@@ -154,6 +136,11 @@ static void PXScheduleClipboardClear(void) {
     }
     [BHIManager cleanCache];
 
+    // Streak auto-renew: check and schedule
+    if ([BHIManager streakAutoRenewEnabled]) {
+        [self pxCheckAndRescheduleStreak];
+    }
+
     if ([BHIManager hidePlusButton] || [BHIManager hideNotificationBadges]) {
         // NOTE: best-effort generic approach — repeatedly scans the visible view
         // hierarchy for tab-bar buttons/badges by class-name and accessibility-label
@@ -166,10 +153,7 @@ static void PXScheduleClipboardClear(void) {
             [self pxScanForTabBarElementsIn:keyWindow];
         }];
     }
-    if ([BHIManager streakAutoRenewEnabled]) {
-        [self pxCheckAndRescheduleStreak];
-    }
-    return true;
+    return result;
 }
 %new - (void)pxScanForTabBarElementsIn:(UIView *)root {
     for (UIView *subview in root.subviews) {
@@ -206,20 +190,19 @@ static BOOL isAuthenticationShowed = FALSE;
   [[NSUserDefaults standardUserDefaults] setInteger:totalSessions + 1 forKey:@"px_total_sessions"];
 }
 
+- (UIWindow *)pxActiveWindow {
+    for (UIWindow *window in [UIApplication sharedApplication].windows.reverseObjectEnumerator) {
+        if (!window.hidden && window.alpha > 0 && window.windowLevel == UIWindowLevelNormal && window.rootViewController) return window;
+    }
+    return [UIApplication sharedApplication].windows.firstObject;
+}
 - (void)applicationWillEnterForeground:(id)arg1 {
   %orig;
   isAuthenticationShowed = FALSE;
 
-  if ([BHIManager ghostPrivacyScreen]) {
-    UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
-    UIView *blurView = [keyWindow viewWithTag:987654];
-    if (blurView) {
-        [UIView animateWithDuration:0.15 animations:^{
-            blurView.alpha = 0;
-        } completion:^(BOOL finished) {
-            [blurView removeFromSuperview];
-        }];
-    }
+  for (UIWindow *window in [UIApplication sharedApplication].windows) {
+      UIView *privacyView = [window viewWithTag:987654];
+      if (privacyView) [privacyView removeFromSuperview];
   }
 }
 
@@ -250,17 +233,65 @@ static BOOL isAuthenticationShowed = FALSE;
   // Ghost: blur your own screen content before the app switcher snapshot is taken,
   // so nobody nearby can see your feed/DMs in the multitasking preview.
   if ([BHIManager ghostPrivacyScreen]) {
-    UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
-    UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
-    UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
-    blurView.tag = 987654;
-    blurView.frame = keyWindow.bounds;
-    blurView.alpha = 0;
-    [keyWindow addSubview:blurView];
-    [UIView animateWithDuration:0.15 animations:^{
+    UIWindow *keyWindow = [self pxActiveWindow];
+    if (keyWindow && ![keyWindow viewWithTag:987654]) {
+        UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+        UIVisualEffectView *blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
+        blurView.tag = 987654;
+        blurView.frame = keyWindow.bounds;
+        blurView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        blurView.alpha = 0;
+        [keyWindow addSubview:blurView];
         blurView.alpha = 1;
-    }];
+        [keyWindow layoutIfNeeded];
+    }
   }
+}
+%new - (void)pxCheckAndRescheduleStreak {
+    NSTimeInterval lastSent = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_streak_last_sent"];
+    NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+    BOOL shouldSendNow = (now - lastSent) > 23.5 * 3600;
+
+    if (shouldSendNow && lastSent > 0) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self pxSendStreakMessages];
+        });
+    }
+
+    NSString *timeStr = [BHIManager streakScheduledTime];
+    NSArray *parts = [timeStr componentsSeparatedByString:@":"];
+    NSInteger hour = [parts[0] integerValue];
+    NSInteger min  = parts.count > 1 ? [parts[1] integerValue] : 0;
+
+    [[UNUserNotificationCenter currentNotificationCenter] removePendingNotificationRequestsWithIdentifiers:@[@"px_streak_reminder"]];
+    UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+    content.title = @"PXTok 🔥";
+    content.body  = [BHIManager isRussian] ? @"Огонёк отправляется..." : @"Sending streak...";
+    content.sound = [UNNotificationSound defaultSound];
+    NSDateComponents *dc = [[NSDateComponents alloc] init];
+    dc.hour = hour; dc.minute = min;
+    UNCalendarNotificationTrigger *trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents:dc repeats:YES];
+    UNNotificationRequest *req = [UNNotificationRequest requestWithIdentifier:@"px_streak_reminder" content:content trigger:trigger];
+    [[UNUserNotificationCenter currentNotificationCenter] addNotificationRequest:req withCompletionHandler:nil];
+}
+%new - (void)pxSendStreakMessages {
+    NSString *msg = [BHIManager streakMessageText];
+    if (!msg.length) msg = @"🔥";
+    id convMgr = [%c(TIMConversationManager) performSelector:@selector(sharedInstance)];
+    if (!convMgr) return;
+    NSArray *convList = [convMgr respondsToSelector:@selector(getConversationList)] ? [convMgr getConversationList] : nil;
+    for (id conv in convList) {
+        NSInteger type = [[conv conversationType] integerValue];
+        if (type == 1) { // C2C only
+            id textElem = [%c(TIMTextElem) new];
+            [textElem performSelector:@selector(setText:) withObject:msg];
+            id message = [%c(TIMMessage) new];
+            [message performSelector:@selector(addElem:) withObject:textElem];
+            [conv performSelector:@selector(sendMessage:succ:fail:) withObject:message withObject:nil withObject:nil];
+        }
+    }
+    [[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"px_streak_last_sent"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
 }
 %end
 
@@ -456,16 +487,9 @@ static BOOL isAuthenticationShowed = FALSE;
 %end
 
 %hook BDImageView
-- (void)layoutSubviews {
+- (void)layoutSubviews { // Profile save
     %orig;
-    // PXTok: always add long press for avatar saving
-    BOOL alreadyAdded = NO;
-    for (UIGestureRecognizer *gr in self.gestureRecognizers) {
-        if ([gr isKindOfClass:[UILongPressGestureRecognizer class]]) {
-            alreadyAdded = YES; break;
-        }
-    }
-    if (!alreadyAdded) {
+    if ([BHIManager profileSave]) {
         [self addHandleLongPress];
     }
 }
@@ -525,7 +549,7 @@ static BOOL isAuthenticationShowed = FALSE;
 - (void)didSelectItemAtIndex:(NSInteger)index {
     if ([self.itemModel.identifier isEqualToString:@"pxtok_settings"]) {
         PXMenuTabBarController *menu = [[PXMenuTabBarController alloc] init];
-        menu.modalPresentationStyle = UIModalPresentationFormSheet;
+        menu.modalPresentationStyle = UIModalPresentationPageSheet;
         [topMostController() presentViewController:menu animated:YES completion:nil];
     } else {
         return %orig;
@@ -534,8 +558,6 @@ static BOOL isAuthenticationShowed = FALSE;
 %end
 
 %hook AWESettingsNormalSectionViewModel
-// viewDidLoad может вызываться повторно при возврате на экран — поэтому
-// вставляем только если PXTok-ячейки ещё нет в списке моделей.
 - (void)viewDidLoad {
     %orig;
     [self pxInsertPXTokCellIfNeeded];
@@ -545,25 +567,33 @@ static BOOL isAuthenticationShowed = FALSE;
     [self pxInsertPXTokCellIfNeeded];
 }
 %new - (void)pxInsertPXTokCellIfNeeded {
-    if (![self.sectionIdentifier isEqualToString:@"account"]) return;
-    // Проверяем, есть ли уже PXTok-модель
-    for (id model in self.cellPlugins) {
-        if ([model respondsToSelector:@selector(itemModel)]) {
-            id item = [model itemModel];
-            if ([item respondsToSelector:@selector(identifier)] &&
-                [[item identifier] isEqualToString:@"pxtok_settings"]) {
-                return; // уже есть — не дублируем
-            }
-        }
+    NSString *section = (self.sectionIdentifier ?: @"").lowercaseString;
+    if ([section containsString:@"tako"]) {
+        self.modelsArray = @[];
+        return;
     }
-    TTKSettingsBaseCellPlugin *cell = [[%c(TTKSettingsBaseCellPlugin) alloc] initWithPluginContext:self.context];
-    AWESettingItemModel *item = [[%c(AWESettingItemModel) alloc] initWithIdentifier:@"pxtok_settings"];
-    [item setTitle:@"PXTok"];
-    [item setDetail:@"PXTok"];
-    [item setIconImage:[PXAssets pxIcon]];
-    [item setType:99];
-    [cell setItemModel:item];
-    [self insertModel:cell atIndex:0 animated:NO];
+    if (![section containsString:@"account"]) return;
+    NSMutableArray *filtered = [NSMutableArray array];
+    BOOL hasPXTok = NO;
+    for (id model in self.modelsArray ?: @[]) {
+        id item = [model respondsToSelector:@selector(itemModel)] ? [model itemModel] : nil;
+        NSString *identifier = [item respondsToSelector:@selector(identifier)] ? [item identifier] : @"";
+        NSString *title = [item respondsToSelector:@selector(title)] ? [item title] : @"";
+        if ([identifier isEqualToString:@"pxtok_settings"]) { hasPXTok = YES; continue; }
+        if ([title.lowercaseString containsString:@"takosettings"] || [title.lowercaseString isEqualToString:@"tako"]) continue;
+        [filtered addObject:model];
+    }
+    if (!hasPXTok) {
+        TTKSettingsBaseCellPlugin *cell = [[%c(TTKSettingsBaseCellPlugin) alloc] initWithPluginContext:self.context];
+        AWESettingItemModel *item = [[%c(AWESettingItemModel) alloc] initWithIdentifier:@"pxtok_settings"];
+        [item setTitle:@"PXTok"];
+        [item setDetail:@"PXTok"];
+        [item setIconImage:[PXAssets pxIcon]];
+        [item setType:99];
+        [cell setItemModel:item];
+        [filtered insertObject:cell atIndex:0];
+    }
+    self.modelsArray = filtered;
 }
 %end
 
@@ -999,23 +1029,38 @@ static BOOL isAuthenticationShowed = FALSE;
 }
 %end
 
-%hook AWEAwemeModel // no ads, show porgress bar, duration filter, word blacklist
+%hook AWEAwemeModel (PXAdsAndLive)
 - (id)initWithDictionary:(id)arg1 error:(id *)arg2 {
     id orig = %orig;
-    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;
+    // Ads filter
+    if ([BHIManager hideAds] && self.isAds) return nil;
     if (!orig) return orig;
+    // Duration filter
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"px_duration_filter_enabled"]) {
-        double dur = [[(AWEAwemeModel *)orig video].duration doubleValue] / 1000.0;
+        double dur = [[self video].duration doubleValue] / 1000.0;
         double minD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_min"] ?: 15;
         double maxD = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_duration_max"] ?: 3600;
         if (dur > 0 && (dur < minD || dur > maxD)) return nil;
+    }
+    // Word blacklist
+    NSArray *blacklist = [[NSUserDefaults standardUserDefaults] arrayForKey:@"px_word_blacklist"];
+    if (blacklist.count) {
+        NSString *desc = [self valueForKeyPath:@"descriptionString"] ?:
+                         [self valueForKeyPath:@"desc"] ?:
+                         [self valueForKeyPath:@"videoDescription"] ?: @"";
+        NSString *lower = desc.lowercaseString;
+        for (NSString *word in blacklist) {
+            if ([lower containsString:word.lowercaseString]) return nil;
+        }
     }
     return orig;
 }
 - (id)init {
     id orig = %orig;
-    if ([BHIManager hideAds] && [(AWEAwemeModel *)orig isAds]) return nil;
+    // Ads filter
+    if ([BHIManager hideAds] && self.isAds) return nil;
     if (!orig) return orig;
+    // Word blacklist
     NSArray *blacklist = [[NSUserDefaults standardUserDefaults] arrayForKey:@"px_word_blacklist"];
     if (blacklist.count) {
         NSString *desc = [(AWEAwemeModel *)orig valueForKeyPath:@"descriptionString"] ?:
@@ -1063,9 +1108,6 @@ static BOOL isAuthenticationShowed = FALSE;
         return nil;
     }
     return %orig;
-}
-- (BOOL)isUserRecommendBigCard {
-    return NO; // PXTok: always hide recommend cards
 }
 %end
 
@@ -1453,7 +1495,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 %property (nonatomic, retain) UIProgressView *progressView;
 - (void)configWithModel:(id)model {
     %orig;
-    self.elementsHidden = NO;
+    self.elementsHidden = false;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -1463,7 +1505,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 }
 - (void)configureWithModel:(id)model {
     %orig;
-    self.elementsHidden = NO;
+    self.elementsHidden = false;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -1810,12 +1852,12 @@ static BOOL _pxDislikeCommentBypass = NO;
     if ([rootVC.interactionController isKindOfClass:%c(TTKFeedInteractionLegacyMainContainerElement)]) {
         TTKFeedInteractionLegacyMainContainerElement *interactionController = rootVC.interactionController;
         if (self.elementsHidden) {
-            self.elementsHidden = NO;
-            [interactionController hideAllElements:NO exceptArray:nil];
+            self.elementsHidden = false;
+            [interactionController hideAllElements:false exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
         } else {
-            self.elementsHidden = YES;
-            [interactionController hideAllElements:YES exceptArray:nil];
+            self.elementsHidden = true;
+            [interactionController hideAllElements:true exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
         }
     }
@@ -1877,7 +1919,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 %property (nonatomic, retain) NSString *fileextension;
 - (void)configWithModel:(id)model {
     %orig;
-    self.elementsHidden = NO;
+    self.elementsHidden = false;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -1887,7 +1929,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 }
 - (void)configureWithModel:(id)model {
     %orig;
-    self.elementsHidden = NO;
+    self.elementsHidden = false;
     if ([BHIManager downloadButton]){
         [self addDownloadButton];
     }
@@ -2067,12 +2109,12 @@ static BOOL _pxDislikeCommentBypass = NO;
     if ([rootVC.interactionController isKindOfClass:%c(TTKFeedInteractionLegacyMainContainerElement)]) {
         TTKFeedInteractionLegacyMainContainerElement *interactionController = rootVC.interactionController;
         if (self.elementsHidden) {
-            self.elementsHidden = NO;
-            [interactionController hideAllElements:NO exceptArray:nil];
+            self.elementsHidden = false;
+            [interactionController hideAllElements:false exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
         } else {
-            self.elementsHidden = YES;
-            [interactionController hideAllElements:YES exceptArray:nil];
+            self.elementsHidden = true;
+            [interactionController hideAllElements:true exceptArray:nil];
             [sender setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
         }
     }
@@ -2329,17 +2371,15 @@ static BOOL _pxDislikeCommentBypass = NO;
 - (void)onRecvMessages:(NSArray *)messages {
     %orig;
     if (![BHIManager deletedMessagesEnabled]) return;
-    // Кэшируем входящие сообщения
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         NSMutableDictionary *cache = [[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"px_deleted_messages_cache"] mutableCopy] ?: [NSMutableDictionary dictionary];
         for (id msg in messages) {
-            NSString *msgId = nil;
-            NSString *content = nil;
-            if ([msg respondsToSelector:@selector(msgID)]) msgId = [msg msgID];
-            if ([msg respondsToSelector:@selector(textContent)]) content = [msg textContent];
-            if (msgId && content) cache[msgId] = @{@"text": content, @"ts": @([[NSDate date] timeIntervalSince1970])};
+            NSString *msgId = [msg respondsToSelector:@selector(msgID)] ? [msg msgID] : nil;
+            NSString *content = [msg respondsToSelector:@selector(textContent)] ? [msg textContent] : nil;
+            if (msgId.length > 0 && content.length > 0) cache[msgId] = @{@"text": content, @"ts": @([[NSDate date] timeIntervalSince1970])};
         }
         [[NSUserDefaults standardUserDefaults] setObject:cache forKey:@"px_deleted_messages_cache"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
     });
 }
 
@@ -2366,7 +2406,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 // При получении локального уведомления px_streak_reminder
 // находим последние чаты и отправляем streak-сообщение
 // ═══════════════════════════════════════════════════════════════
-%hook AppDelegate
+%hook AppDelegate (PXStreak)
 - (void)userNotificationCenter:(id)center didReceiveNotificationResponse:(id)response withCompletionHandler:(void (^)(void))handler {
     %orig;
     if (![BHIManager streakAutoRenewEnabled]) return;
@@ -2383,13 +2423,13 @@ static BOOL _pxDislikeCommentBypass = NO;
         for (id conv in convList) {
             if ([conv respondsToSelector:@selector(conversationType)]) {
                 // Отправляем только в C2C (личные) чаты
-                NSInteger type = [conv conversationType];
+                NSInteger type = [[conv conversationType] integerValue];
                 if (type == 1) { // C2C
                     id textMsg = [%c(TIMTextElem) new];
                     if ([textMsg respondsToSelector:@selector(setText:)]) [textMsg setText:msg];
                     id message = [%c(TIMMessage) new];
                     if ([message respondsToSelector:@selector(addElem:)]) [message addElem:textMsg];
-                    [(TIMConversation *)conv sendMessage:message succ:nil fail:nil];
+                    [conv sendMessage:message succ:nil fail:nil];
                 }
             }
         }
@@ -2422,12 +2462,29 @@ static BOOL _pxDislikeCommentBypass = NO;
 // 2. СОХРАНЕНИЕ АВАТАРА ДОЛГИМ НАЖАТИЕМ (всегда включено)
 //    Хукаем BDImageView.layoutSubviews — уже есть, но там за тумблером.
 //    Убираем проверку тумблера — работает всегда.
+// ═══════════════════════════════════════════════════════════════
+%hook BDImageView (PXAlwaysSaveAvatar)
+- (void)layoutSubviews {
+    %orig;
+    // Всегда добавляем long press для сохранения аватара
+    BOOL alreadyAdded = NO;
+    for (UIGestureRecognizer *gr in self.gestureRecognizers) {
+        if ([gr isKindOfClass:[UILongPressGestureRecognizer class]] &&
+            [NSStringFromSelector(gr.action) containsString:@"LongPress"]) {
+            alreadyAdded = YES; break;
+        }
+    }
+    if (!alreadyAdded) {
+        [self addHandleLongPress];
+    }
+}
+%end
 
 // ═══════════════════════════════════════════════════════════════
 // 3. УВЕЛИЧЕННЫЙ ЛИМИТ СИМВОЛОВ В КОММЕНТАРИЯХ (всегда)
 //    UITextView maxLength — TikTok ставит 150, мы убираем ограничение.
 // ═══════════════════════════════════════════════════════════════
-%hook AWETextInputController
+%hook AWETextInputController (PXCommentLimit)
 - (NSInteger)textMaximumLength {
     NSInteger orig = %orig;
     return MAX(orig, 2200); // Instagram-style max
@@ -2439,7 +2496,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 //    AWEAwemeModel.createTime — уже используется в AWEUserWorkCollectionViewCell.
 //    Добавляем также в лентовый просмотр через AWEFeedCellViewController.
 // ═══════════════════════════════════════════════════════════════
-%hook AWEFeedCellViewController
+%hook AWEFeedCellViewController (PXPublishDate)
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     AWEAwemeModel *model = self.model;
@@ -2477,7 +2534,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 // 5. КОПИРОВАНИЕ КОММЕНТАРИЯ БЕЗ @USERNAME (всегда)
 //    Перехватываем long-press на AWECommentPanelCell, копируем только текст.
 // ═══════════════════════════════════════════════════════════════
-%hook AWECommentPanelCell
+%hook AWECommentPanelCell (PXCopyNoAt)
 - (void)longPressGestureAction:(UILongPressGestureRecognizer *)gr {
     %orig; // показываем оригинальное меню
     // Патчим UIPasteboard сразу после: убираем @mention если есть
@@ -2497,13 +2554,46 @@ static BOOL _pxDislikeCommentBypass = NO;
 // ═══════════════════════════════════════════════════════════════
 // 6. СКРЫТИЕ РЕКОМЕНДАЦИЙ АККАУНТОВ (всегда)
 //    isUserRecommendBigCard — флаг в AWEAwemeModel для карточек «подпишитесь».
+// ═══════════════════════════════════════════════════════════════
+%hook AWEAwemeModel (PXHideRecommend)
+- (BOOL)isUserRecommendBigCard {
+    if ([BHIManager skipRecommendations]) return NO;
+    return %orig;
+}
+%end
+
+%hook AWENewFeedTableViewController (PXRefreshAfterRegion)
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    if ([BHIManager regionChangingEnabled] && [BHIManager selectedRegion]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"PXTokRegionChanged" object:nil];
+    }
+}
+%end
+
+%hook AWEFeedModel (PXRecommendationRegion)
+- (NSString *)recommendUrl {
+    if ([BHIManager regionChangingEnabled] && [BHIManager selectedRegion]) {
+        NSDictionary *region = [BHIManager selectedRegion];
+        NSString *url = %orig;
+        if (url.length > 0 && region[@"code"]) {
+            NSURLComponents *components = [NSURLComponents componentsWithString:url];
+            NSMutableArray *items = [components.queryItems mutableCopy] ?: [NSMutableArray array];
+            [items addObject:[NSURLQueryItem queryItemWithName:@"region" value:region[@"code"]]];
+            components.queryItems = items;
+            return components.URL.absoluteString ?: url;
+        }
+    }
+    return %orig;
+}
+%end
 
 // ═══════════════════════════════════════════════════════════════
 // 7. ОБВОДКА ИСТОРИЙ (применяем сохранённый цвет)
 //    Хукаем AWEStoryBubbleView или TTKFriendTabStoryAvatarView.
 //    Используем класс-перебор по имени т.к. точный класс не в хедерах.
 // ═══════════════════════════════════════════════════════════════
-%hook UIView
+%hook UIView (PXStoryBorder)
 - (void)layoutSubviews {
     %orig;
     if (![[NSUserDefaults standardUserDefaults] boolForKey:@"px_story_border_enabled"]) return;
@@ -2521,15 +2611,13 @@ static BOOL _pxDislikeCommentBypass = NO;
 %end
 
 // ═══════════════════════════════════════════════════════════════
-// 8. ФИЛЬТР ПО ДЛИТЕЛЬНОСТИ (если включён тумблер)
-
+// 8+9. Duration filter & word blacklist merged into AWEAwemeModel (PXAdsAndLive) above
 // ═══════════════════════════════════════════════════════════════
-// 9. ЧЁРНЫЙ СПИСОК СЛОВ (всегда)
 
 // ═══════════════════════════════════════════════════════════════
 // 10. КАСТОМНЫЙ ШРИФТ — подменяем системный если выбран
 // ═══════════════════════════════════════════════════════════════
-%hook UIFont
+%hook UIFont (PXCustomFont)
 + (UIFont *)systemFontOfSize:(CGFloat)size {
     NSString *path = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_active_font_path"];
     if (!path.length) return %orig;
@@ -2573,66 +2661,15 @@ static BOOL _pxDislikeCommentBypass = NO;
 %end
 
 // ═══════════════════════════════════════════════════════════════
-// 11. ПРОВЕРКА ОГОНЬКА ПРИ ЗАПУСКЕ + АВТОМАТИЧЕСКАЯ ОТПРАВКА
+// 11. ПРОВЕРКА ОГОНЬКА — moved %new methods into AppDelegate (PXMain)
 // ═══════════════════════════════════════════════════════════════
-%hook AppDelegate
-%new - (void)pxCheckAndRescheduleStreak {
-    // Проверяем когда последний раз отправляли
-    NSTimeInterval lastSent = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_streak_last_sent"];
-    NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-    BOOL shouldSendNow = (now - lastSent) > 23.5 * 3600; // если прошло >23.5ч
-
-    if (shouldSendNow && lastSent > 0) {
-        // Отправляем сразу
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self pxSendStreakMessages];
-        });
-    }
-
-    // Перепланируем уведомление
-    NSString *timeStr = [BHIManager streakScheduledTime];
-    NSArray *parts = [timeStr componentsSeparatedByString:@":"];
-    NSInteger hour = [parts[0] integerValue];
-    NSInteger min  = parts.count > 1 ? [parts[1] integerValue] : 0;
-
-    [[UNUserNotificationCenter currentNotificationCenter] removePendingNotificationRequestsWithIdentifiers:@[@"px_streak_reminder"]];
-    UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.title = @"PXTok";
-    content.body  = [BHIManager isRussian] ? @"Огонёк отправляется..." : @"Sending streak...";
-    content.sound = [UNNotificationSound defaultSound];
-    NSDateComponents *dc = [[NSDateComponents alloc] init];
-    dc.hour = hour; dc.minute = min;
-    UNCalendarNotificationTrigger *trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents:dc repeats:YES];
-    UNNotificationRequest *req = [UNNotificationRequest requestWithIdentifier:@"px_streak_reminder" content:content trigger:trigger];
-    [[UNUserNotificationCenter currentNotificationCenter] addNotificationRequest:req withCompletionHandler:nil];
-}
-%new - (void)pxSendStreakMessages {
-    NSString *msg = [BHIManager streakMessageText];
-    if (!msg.length) msg = @"🔥";
-    id convMgr = [%c(TIMConversationManager) performSelector:@selector(sharedInstance)];
-    if (!convMgr) return;
-    NSArray *convList = [convMgr respondsToSelector:@selector(getConversationList)] ? [convMgr getConversationList] : nil;
-    for (id conv in convList) {
-        NSInteger type = [conv conversationType];
-        if (type == 1) { // C2C only
-            id textElem = [%c(TIMTextElem) new];
-            [textElem performSelector:@selector(setText:) withObject:msg];
-            id message = [%c(TIMMessage) new];
-            [message performSelector:@selector(addElem:) withObject:textElem];
-            [(TIMConversation *)conv sendMessage:message succ:nil fail:nil];
-        }
-    }
-    [[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"px_streak_last_sent"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
-}
-%end
 
 // ═══════════════════════════════════════════════════════════════
 // 12. УДАЛЁННЫЕ СООБЩЕНИЯ — отображение в чате
 //     Хукаем ячейку сообщения: если сообщение в кэше как deleted → кастомный UI
 // ═══════════════════════════════════════════════════════════════
 // Попытка хука по имени класса (класс чат-ячейки TikTok)
-%hook NSObject
+%hook NSObject (PXIMCellHook)
 - (void)pxCheckDeletedStateForMsgID:(NSString *)msgID inView:(UIView *)cell {
     if (![BHIManager deletedMessagesEnabled]) return;
     NSDictionary *cache = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"px_deleted_messages_cache"];
@@ -2654,14 +2691,13 @@ static BOOL _pxDislikeCommentBypass = NO;
     trashIcon.userInteractionEnabled = YES;
     [cell addSubview:trashIcon];
 
-    // Драг жест на корзину
-    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:trashIcon action:@selector(pxDragTrash:)];
+    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pxDragTrash:)];
     [trashIcon addGestureRecognizer:pan];
 
     // Тап на корзину — предпросмотр
     NSString *text = entry[@"text"] ?: @"";
     UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(pxPreviewDeletedMessage:)];
-    [(id)tap setAccessibilityLabel:text];
+    tap.accessibilityLabel = text;
     [trashIcon addGestureRecognizer:tap];
 
     [NSLayoutConstraint activateConstraints:@[
@@ -2670,17 +2706,25 @@ static BOOL _pxDislikeCommentBypass = NO;
     ]];
 }
 %new - (void)pxPreviewDeletedMessage:(UITapGestureRecognizer *)gr {
-    NSString *text = [(id)gr accessibilityLabel] ?: @"";
+    NSString *text = gr.accessibilityLabel ?: @"";
     BOOL ru = [BHIManager isRussian];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:(ru?@"Удалённое сообщение":@"Deleted Message") message:text preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
     UIViewController *top = topMostController();
     [top presentViewController:alert animated:YES completion:nil];
 }
+%new - (void)pxDragTrash:(UIPanGestureRecognizer *)gesture {
+    UIView *icon = gesture.view;
+    CGPoint translation = [gesture translationInView:icon.superview];
+    if (gesture.state == UIGestureRecognizerStateChanged || gesture.state == UIGestureRecognizerStateEnded) {
+        icon.center = CGPointMake(icon.center.x + translation.x, icon.center.y + translation.y);
+        [gesture setTranslation:CGPointZero inView:icon.superview];
+    }
+}
 %end
 
 // Хук на ячейку сообщений TikTok IM
-%hook UITableViewCell
+%hook UITableViewCell (PXIMDeletedCell)
 - (void)layoutSubviews {
     %orig;
     NSString *cls = NSStringFromClass([self class]);
@@ -2694,6 +2738,14 @@ static BOOL _pxDislikeCommentBypass = NO;
                    ?: [self valueForKeyPath:@"model.msgID"];
     if (!msgID) return;
     [self pxCheckDeletedStateForMsgID:msgID inView:self];
+}
+%end
+
+%hook TIMMessageCell (PXDeletedMessageCell)
+- (void)layoutSubviews {
+    %orig;
+    NSString *msgID = [self valueForKeyPath:@"viewModel.message.msgID"] ?: [self valueForKeyPath:@"message.msgID"] ?: [self valueForKeyPath:@"model.msgID"];
+    if (msgID.length > 0) [self pxCheckDeletedStateForMsgID:msgID inView:self];
 }
 %end
 

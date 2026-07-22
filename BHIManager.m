@@ -35,7 +35,9 @@
 + (BOOL)showUsername {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"show_username"];
 }
-// disablePullToRefresh defined below at line 101
++ (BOOL)disablePullToRefresh {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"pull_to_refresh"];
+}
 + (BOOL)disableUnsensitive {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"disable_unsensitive"];
 }
@@ -66,7 +68,9 @@
 + (BOOL)profileCopy {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"copy_profile_information"];
 }
-// profileVideoCount defined below at line 98
++ (BOOL)profileVideoCount {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"uploaded_videos"];
+}
 + (BOOL)alwaysOpenSafari {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"openInBrowser"];
 }
@@ -90,12 +94,6 @@
 }
 + (BOOL)videoUploadDate {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"video_upload_date"];
-}
-+ (BOOL)profileVideoCount {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"profile_video_count"];
-}
-+ (BOOL)disablePullToRefresh {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"disable_pull_to_refresh"];
 }
 + (NSDictionary *)selectedRegion {
     return [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"region"];
@@ -264,6 +262,7 @@
     NSNumber *number = [NSNumber numberWithFloat:per];
     return [numberFormatter stringFromNumber:number];
 }
+
 // ─── Режим призрака (новые) ───
 + (BOOL)ghostNoStoryMark {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"px_ghost_no_story_mark"];
@@ -306,6 +305,8 @@
 
 // ─── Утилита ───
 + (BOOL)isRussian {
-    return [[[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"] isEqualToString:@"ru"];
+    NSString *language = [[NSUserDefaults standardUserDefaults] stringForKey:@"px_language"];
+    return language.length == 0 || [language isEqualToString:@"ru"];
 }
+
 @end
