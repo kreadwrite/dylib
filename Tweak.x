@@ -2315,7 +2315,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 // При получении локального уведомления px_streak_reminder
 // находим последние чаты и отправляем streak-сообщение
 // ═══════════════════════════════════════════════════════════════
-%hook AppDelegate (PXStreak)
+%hook AppDelegate
 - (void)userNotificationCenter:(id)center didReceiveNotificationResponse:(id)response withCompletionHandler:(void (^)(void))handler {
     %orig;
     if (![BHIManager streakAutoRenewEnabled]) return;
@@ -2372,14 +2372,13 @@ static BOOL _pxDislikeCommentBypass = NO;
 //    Хукаем BDImageView.layoutSubviews — уже есть, но там за тумблером.
 //    Убираем проверку тумблера — работает всегда.
 // ═══════════════════════════════════════════════════════════════
-%hook BDImageView (PXAlwaysSaveAvatar)
+%hook BDImageView
 - (void)layoutSubviews {
     %orig;
     // Всегда добавляем long press для сохранения аватара
     BOOL alreadyAdded = NO;
     for (UIGestureRecognizer *gr in self.gestureRecognizers) {
-        if ([gr isKindOfClass:[UILongPressGestureRecognizer class]] &&
-            [NSStringFromSelector(gr.action) containsString:@"LongPress"]) {
+        if ([gr isKindOfClass:[UILongPressGestureRecognizer class]]) {
             alreadyAdded = YES; break;
         }
     }
@@ -2578,7 +2577,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 // ═══════════════════════════════════════════════════════════════
 // 11. ПРОВЕРКА ОГОНЬКА ПРИ ЗАПУСКЕ + АВТОМАТИЧЕСКАЯ ОТПРАВКА
 // ═══════════════════════════════════════════════════════════════
-%hook AppDelegate (PXStreakCheck)
+%hook AppDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     BOOL result = %orig;
     if ([BHIManager streakAutoRenewEnabled]) {
