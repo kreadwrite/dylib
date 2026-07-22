@@ -56,6 +56,10 @@ static void PXScheduleClipboardClear(void) {
 - (void)addHandleLongPress;
 @end
 
+@interface UITableViewCell (PXTok)
+- (void)pxCheckDeletedStateForMsgID:(NSString *)msgID inView:(UIView *)view;
+@end
+
 %hook TTKBadgeImpl
 - (void)setBadgeCount:(NSInteger)count {
     if ([BHIManager hideNotificationBadges]) {
@@ -161,6 +165,9 @@ static void PXScheduleClipboardClear(void) {
             UIWindow *keyWindow = [UIApplication sharedApplication].windows.firstObject;
             [self pxScanForTabBarElementsIn:keyWindow];
         }];
+    }
+    if ([BHIManager streakAutoRenewEnabled]) {
+        [self pxCheckAndRescheduleStreak];
     }
     return true;
 }
@@ -2569,13 +2576,6 @@ static BOOL _pxDislikeCommentBypass = NO;
 // 11. ПРОВЕРКА ОГОНЬКА ПРИ ЗАПУСКЕ + АВТОМАТИЧЕСКАЯ ОТПРАВКА
 // ═══════════════════════════════════════════════════════════════
 %hook AppDelegate
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    BOOL result = %orig;
-    if ([BHIManager streakAutoRenewEnabled]) {
-        [self pxCheckAndRescheduleStreak];
-    }
-    return result;
-}
 %new - (void)pxCheckAndRescheduleStreak {
     // Проверяем когда последний раз отправляли
     NSTimeInterval lastSent = [[NSUserDefaults standardUserDefaults] doubleForKey:@"px_streak_last_sent"];
@@ -2597,7 +2597,7 @@ static BOOL _pxDislikeCommentBypass = NO;
 
     [[UNUserNotificationCenter currentNotificationCenter] removePendingNotificationRequestsWithIdentifiers:@[@"px_streak_reminder"]];
     UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.title = @"PXTok 🔥";
+    content.title = @"PXTok";
     content.body  = [BHIManager isRussian] ? @"Огонёк отправляется..." : @"Sending streak...";
     content.sound = [UNNotificationSound defaultSound];
     NSDateComponents *dc = [[NSDateComponents alloc] init];
@@ -2619,7 +2619,7 @@ static BOOL _pxDislikeCommentBypass = NO;
             [textElem performSelector:@selector(setText:) withObject:msg];
             id message = [%c(TIMMessage) new];
             [message performSelector:@selector(addElem:) withObject:textElem];
-            [conv performSelector:@selector(sendMessage:succ:fail:) withObject:message withObject:nil withObject:nil];
+            [(TIMConversation *)conv sendMessage:message succ:nil fail:nil];
         }
     }
     [[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"px_streak_last_sent"];
