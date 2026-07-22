@@ -1031,7 +1031,9 @@ static BOOL isAuthenticationShowed = FALSE;
     }
     return %orig;
 }
-- (BOOL)isUserRecommendBigCard {    return NO; // PXTok: always hide recommend cards}
+- (BOOL)isUserRecommendBigCard {
+    return NO; // PXTok: always hide recommend cards
+}
 %end
 
 %hook AWEPlayInteractionWarningElementView
